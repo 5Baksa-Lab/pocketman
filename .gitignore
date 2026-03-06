@@ -1,0 +1,11 @@
+.env
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+.DS_Store
+outputs/
+
+scripts/poc_images/*
+!scripts/poc_images/.gitkeep

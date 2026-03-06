@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pokéman 프로젝트 기획안 v5 최종확정</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    background: #f8f9fb;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 960px;
+    margin: 30px auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .doc-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: white;
+    padding: 40px 48px;
+  }
+  .doc-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px;
+    color: #a0c4ff;
+    margin-bottom: 24px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .meta-card {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .meta-card .label { font-size: 10px; color: #90caf9; text-transform: uppercase; letter-spacing: 1px; }
+  .meta-card .value { font-size: 14px; font-weight: 600; color: white; margin-top: 4px; }
+
+  /* Content */
+  .content { padding: 40px 48px; }
+
+  /* Section headers */
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f3460;
+    margin: 40px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e8f0fe;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .section-num {
+    background: #0f3460;
+    color: white;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 24px 0 12px;
+  }
+
+  /* Vision box */
+  .vision-box {
+    background: linear-gradient(135deg, #e8f0fe, #fce8ff);
+    border-left: 4px solid #0f3460;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0f3460;
+    line-height: 1.5;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 12px;
+  }
+  th {
+    background: #0f3460;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f2f8;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f8f9fb; }
+  tr:hover td { background: #e8f0fe; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-red { background: #fde8e8; color: #c0392b; }
+  .badge-orange { background: #fef3e2; color: #d35400; }
+  .badge-yellow { background: #fefde8; color: #b7950b; }
+  .badge-green { background: #e8fef0; color: #1e8449; }
+  .badge-blue { background: #e8f0fe; color: #1a5276; }
+  .badge-purple { background: #f4e8fe; color: #7d3c98; }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: #0f1724;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 24px;
+    border-radius: 10px;
+    margin: 16px 0;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+
+  /* Pipeline steps */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+  }
+  .pipeline-step {
+    display: flex;
+    gap: 0;
+  }
+  .step-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #0f3460;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .step-line {
+    width: 2px;
+    background: #c5d5ea;
+    flex: 1;
+    min-height: 20px;
+  }
+  .step-content {
+    flex: 1;
+    background: #f8f9fb;
+    border: 1px solid #e0e8f0;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 0 0 12px 12px;
+  }
+  .step-title { font-weight: 700; color: #0f3460; font-size: 13px; margin-bottom: 4px; }
+  .step-desc { color: #555; font-size: 12px; line-height: 1.5; }
+
+  /* Comparison cards */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-card {
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .compare-card.old {
+    background: #fef3e2;
+    border: 2px solid #f39c12;
+  }
+  .compare-card.new {
+    background: #e8fef0;
+    border: 2px solid #27ae60;
+  }
+  .compare-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .compare-card.old h4 { color: #d35400; }
+  .compare-card.new h4 { color: #1e8449; }
+  .compare-card ul { list-style: none; }
+  .compare-card ul li {
+    font-size: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: #333;
+  }
+  .compare-card ul li::before {
+    content: '▸';
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Vector structure */
+  .vector-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .vector-card {
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .vector-card.visual { background: #e8f0fe; border: 2px solid #4285f4; }
+  .vector-card.impression { background: #fce8ff; border: 2px solid #9c27b0; }
+  .vector-card.type { background: #e8fef0; border: 2px solid #27ae60; }
+  .vector-card .dim {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .vector-card.visual .dim { color: #1a73e8; }
+  .vector-card.impression .dim { color: #8e24aa; }
+  .vector-card.type .dim { color: #1e8449; }
+  .vector-card .dim-label { font-size: 11px; font-weight: 600; margin-top: 6px; }
+  .vector-card .dim-items { font-size: 10px; color: #555; margin-top: 8px; line-height: 1.6; text-align: left; }
+
+  /* Tech stack */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .tech-card {
+    background: #f8f9fb;
+    border: 1px solid #e0e8f0;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .tech-card .tech-icon { font-size: 24px; margin-bottom: 8px; }
+  .tech-card .tech-name { font-size: 13px; font-weight: 700; color: #0f3460; }
+  .tech-card .tech-stack { font-size: 11px; color: #555; margin-top: 4px; }
+  .tech-card .tech-deploy { font-size: 10px; color: #27ae60; margin-top: 6px; font-weight: 600; }
+
+  /* Phase timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .phase-card {
+    border-radius: 10px;
+    padding: 20px;
+    border: 2px solid;
+  }
+  .phase-card.phase1 { background: #e8f0fe; border-color: #4285f4; }
+  .phase-card.phase2 { background: #fce8ff; border-color: #9c27b0; }
+  .phase-card.phase3 { background: #e8fef0; border-color: #27ae60; }
+  .phase-card .phase-week { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .phase-card.phase1 .phase-week { color: #1a73e8; }
+  .phase-card.phase2 .phase-week { color: #8e24aa; }
+  .phase-card.phase3 .phase-week { color: #1e8449; }
+  .phase-card .phase-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+  .phase-card ul { list-style: none; }
+  .phase-card ul li { font-size: 11px; color: #333; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+
+  /* Risk */
+  .risk-critical { background: #fde8e8 !important; }
+  .risk-high { background: #fef3e2 !important; }
+  .risk-medium { background: #fefde8 !important; }
+
+  /* ER Diagram */
+  .er-diagram {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 24px;
+    border-radius: 10px;
+    margin: 16px 0;
+    line-height: 1.8;
+  }
+  .er-table-name { color: #90caf9; font-weight: 700; }
+  .er-pk { color: #f8bbd9; }
+  .er-fk { color: #b2dfdb; }
+  .er-col { color: #e0e0e0; }
+  .er-comment { color: #607d8b; }
+
+  /* Section divider */
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, #0f3460, transparent);
+    margin: 32px 0;
+  }
+
+  /* Version history */
+  .version-history {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .version-card {
+    background: #f8f9fb;
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid #e0e8f0;
+    text-align: center;
+  }
+  .version-card.current {
+    background: #0f3460;
+    color: white;
+    border-color: #0f3460;
+  }
+  .version-card .ver { font-size: 16px; font-weight: 700; }
+  .version-card.current .ver { color: #90caf9; }
+  .version-card .ver-desc { font-size: 10px; margin-top: 4px; color: #555; }
+  .version-card.current .ver-desc { color: #b0c4de; }
+
+  /* Footer */
+  .doc-footer {
+    background: #1a1a2e;
+    color: #607d8b;
+    padding: 20px 48px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; margin: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="doc-header">
+    <h1>Pokéman 프로젝트 기획안</h1>
+    <div class="subtitle">CV 기반 벡터 유사도 포켓몬 매칭 + 익명 힐링 소통 SNS</div>
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="label">버전</div>
+        <div class="value">v5.0 최종확정</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">작성일</div>
+        <div class="value">2026.03.06</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">팀</div>
+        <div class="value">5박사연구소</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">과정</div>
+        <div class="value">K디지털 NVIDIA AI</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 버전 이력 -->
+    <h2><span class="section-num">ver</span> 버전 이력</h2>
+    <div class="version-history">
+      <div class="version-card"><div class="ver">v1</div><div class="ver-desc">초안 작성</div></div>
+      <div class="version-card"><div class="ver">v2</div><div class="ver-desc">멀티모달 SNS 추가</div></div>
+      <div class="version-card"><div class="ver">v3</div><div class="ver-desc">구현 전략 구체화</div></div>
+      <div class="version-card"><div class="ver">v4</div><div class="ver-desc">BGM/Veo/외부공유 확정</div></div>
+      <div class="version-card current"><div class="ver">v5</div><div class="ver-desc">pgvector 전환<br>Top-K 선택 UI</div></div>
+    </div>
+
+    <!-- 1. 프로젝트 비전 -->
+    <h2><span class="section-num">01</span> 프로젝트 비전</h2>
+    <div class="vision-box">
+      "내 얼굴을 분석해 나와 가장 닮은 포켓몬을 찾고,<br>
+      그 포켓몬 스타일의 오리지널 크리처로 세상과 소통하는 익명 힐링 SNS"
+    </div>
+    <table>
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td><strong>배경</strong></td><td>외모 평가에 지치거나 온라인 소통에 두려움을 느끼는 현대인에게 안전한 디지털 페르소나가 필요함</td></tr>
+      <tr><td><strong>솔루션</strong></td><td>CV로 얼굴 특징 추출 → pgvector 포켓몬 DB 유사도 매칭 → Top-3 제시 → 사용자 선택 → 오리지널 크리처 + 영상 생성</td></tr>
+      <tr><td><strong>타겟</strong></td><td>MZ세대, 포켓몬 팬, SNS 콘텐츠 소비자</td></tr>
+      <tr><td><strong>차별점</strong></td><td>단순 결과 제공이 아닌 Top-3 근거 제시 + 사용자 직접 선택으로 참여감 강화</td></tr>
+    </table>
+
+    <!-- 2. 전체 시스템 아키텍처 -->
+    <h2><span class="section-num">02</span> 전체 시스템 아키텍처</h2>
+    <div class="arch-diagram">
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                          Pokéman 전체 시스템 아키텍처                              │
+├─────────────────┬──────────────────────────────────┬────────────────────────────┤
+│  사용자 (Browser)│      서비스 레이어                 │   외부 API / 인프라          │
+├─────────────────┼──────────────────────────────────┼────────────────────────────┤
+│                 │                                  │                            │
+│  사진 업로드     │  ┌──────────┐  ┌──────────────┐ │  ┌──────────────────────┐  │
+│  ─────────▶     │  │ Next.js  │  │   FastAPI    │ │  │   Google Gemini API  │  │
+│                 │  │(Frontend)│◀▶│  (Backend)   │ │  │  Veo / Imagen3       │  │
+│  포켓몬 선택     │  │ Vercel   │  │  Railway     │ │  │  Gemini Flash        │  │
+│  ─────────▶     │  └──────────┘  └──────┬───────┘ │  └──────────────────────┘  │
+│                 │                        │          │                            │
+│  이름 편집       │                        ▼          │  ┌──────────────────────┐  │
+│                 │               ┌──────────────┐   │  │   AWS S3 / CDN       │  │
+│  SNS 공유       │               │ CV Pipeline  │   │  │  이미지 / 영상 저장    │  │
+│                 │               │ OpenCV +     │   │  └──────────────────────┘  │
+│                 │               │ MediaPipe    │   │                            │
+│                 │               └──────┬───────┘   │  ┌──────────────────────┐  │
+│                 │                      │            │  │  PokeAPI (사전 수집)  │  │
+│                 │                      ▼            │  │  Fandom Wiki (보완)   │  │
+│                 │               ┌──────────────┐   │  └──────────────────────┘  │
+│                 │               │  PostgreSQL  │   │                            │
+│                 │               │  + pgvector  │   │                            │
+│                 │               │  포켓몬 DB    │   │                            │
+│                 │               └──────────────┘   │                            │
+└─────────────────┴──────────────────────────────────┴────────────────────────────┘
+    </div>
+
+    <!-- 3. MLOps 파이프라인 -->
+    <h2><span class="section-num">03</span> MLOps 파이프라인 시스템 아키텍처</h2>
+
+    <h3>3-1. 사전 준비 파이프라인 (배포 전 1회성 배치 작업)</h3>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">PokeAPI 배치 수집</div>
+          <div class="step-desc">
+            #001~#386 총 386마리 구조 데이터 자동 수집<br>
+            수집 항목: name_kr/en, types, stats, height, weight, sprite_url, color, shape, habitat<br>
+            <span style="color:#1a73e8">딜레이: 100ms/호출 (rate limit 방지)</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">한국어 도감 설명 수집</div>
+          <div class="step-desc">
+            PokeAPI flavor_text_entries에서 'ko' 언어 필터링<br>
+            누락 시 Pokémon Fandom 위키 스크래핑으로 보완
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle" style="background:#8e24aa">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Gemini Vision 시각 특징 주석 배치</div>
+          <div class="step-desc">
+            입력: 포켓몬 공식 스프라이트 이미지 URL (PokeAPI)<br>
+            출력: visual 10차원 JSON (eye_size, face_roundness 등)<br>
+            <span style="color:#8e24aa">비용: 386마리 × ~$0.001 = 약 $0.4 (1회성)</span><br>
+            → 팀 전체 검토 후 이상값 수동 수정
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle" style="background:#8e24aa">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Gemini Flash 인상/성격 점수 추출 배치</div>
+          <div class="step-desc">
+            입력: 도감 텍스트 + 타입 정보<br>
+            출력: impression 9차원 JSON (cute, calm, smart, fierce 등)
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle" style="background:#1e8449">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">타입 친화도 자동 계산</div>
+          <div class="step-desc">
+            TYPE_TO_AFFINITY 룰 테이블 기반 자동 계산<br>
+            출력: type_affinity 8차원 (water, fire, grass, electric, psychic, normal, fighting, ghost)
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle" style="background:#d35400">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">28차원 벡터 생성 및 pgvector 저장</div>
+          <div class="step-desc">
+            visual(10) + impression(9) + type_affinity(8) + glasses(1) = <strong>28차원</strong><br>
+            PostgreSQL + pgvector extension 저장<br>
+            IVFFlat 코사인 유사도 인덱스 생성
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-connector">
+          <div class="step-circle" style="background:#c0392b">7</div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">전체 검증 및 튜닝</div>
+          <div class="step-desc">
+            20+ 테스트 케이스 매칭 결과 팀 전체 리뷰<br>
+            이상한 매칭 발견 시 가중치 조정 후 재확인
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>3-2. 실시간 서비스 파이프라인 (사용자 요청마다 실행)</h3>
+    <div class="arch-diagram">
+  사용자 사진 업로드
+         │
+         ▼
+  ┌──────────────────────────────────────────┐
+  │  [FastAPI] 수신 및 전처리                 │
+  │  OpenCV: 리사이즈, 품질 검사             │
+  │  MediaPipe: 얼굴 검출 + NSFW 필터링      │
+  └──────────────────────┬───────────────────┘
+                         │ 얼굴 검출 성공 (실패 시 재업로드 안내)
+                         ▼
+  ┌──────────────────────────────────────────┐
+  │  [CV 특징 추출]                           │
+  │  MediaPipe 468개 랜드마크 추출            │
+  │  → 수치 계산 → 0.0~1.0 정규화            │
+  │  → 공통 스키마 JSON 생성 (28차원 벡터)   │
+  └──────────────────────┬───────────────────┘
+                         │
+                         ▼
+  ┌──────────────────────────────────────────┐
+  │  [pgvector 코사인 유사도 검색]  < 500ms  │
+  │  포켓몬 DB 386마리 중 Top-3 반환         │
+  │  → Rule-based 근거 문장 자동 생성        │
+  └──────────────────────┬───────────────────┘
+                         │
+                         ▼
+               [사용자 Top-3 선택 UI]
+                         │
+                         ▼
+  ┌────────────────────────────────────────────────────┐
+  │  [생성 파이프라인]  병렬 실행                        │
+  │                                                    │
+  │  ┌──────────────┐   ┌─────────────┐   ┌────────┐  │
+  │  │  Imagen 3    │   │ Gemini Flash│   │  Veo   │  │
+  │  │ 크리처 이미지 │   │ 스토리+이름  │   │  API   │  │
+  │  │ 생성 (~10초)  │   │ 생성 (~5초) │   │(비동기)│  │
+  │  └──────┬───────┘   └──────┬──────┘   └───┬────┘  │
+  │         └──────────┬────────┘             │Job ID  │
+  │                    ▼                      ▼Polling │
+  │              즉시 반환                  1~3분 후    │
+  │              이름 편집 + 프로필         영상 완성    │
+  └────────────────────────────────────────────────────┘
+                         │
+                         ▼
+            [결과물: S3 저장 + CDN 서빙]
+                         │
+              ┌──────────┴──────────┐
+              │                    │
+              ▼                    ▼
+          SNS 공유            포켓 도감 광장 등록
+      (카카오/트위터/URL)        (Opt-in)
+    </div>
+
+    <h3>3-3. 아키텍처 구성 요소별 역할</h3>
+    <table>
+      <tr><th>레이어</th><th>구성 요소</th><th>역할</th><th>배포</th></tr>
+      <tr><td><span class="badge badge-blue">Frontend</span></td><td>Next.js + TypeScript + Tailwind</td><td>UI 렌더링, 사진 업로드, Top-3 선택 UI, Veo Polling</td><td>Vercel</td></tr>
+      <tr><td><span class="badge badge-purple">Backend</span></td><td>FastAPI + Python 3.11+</td><td>요청 수신, CV 파이프라인 오케스트레이션, API 라우팅</td><td>Railway (Docker)</td></tr>
+      <tr><td><span class="badge badge-green">CV</span></td><td>OpenCV + MediaPipe</td><td>얼굴 검출, NSFW 필터, 468 랜드마크 추출, 정규화</td><td>Backend 내장</td></tr>
+      <tr><td><span class="badge badge-orange">벡터 DB</span></td><td>PostgreSQL + pgvector</td><td>포켓몬 28차원 벡터 저장, 코사인 유사도 검색</td><td>Railway (DB)</td></tr>
+      <tr><td><span class="badge badge-red">이미지 생성</span></td><td>Imagen 3 (Gemini API)</td><td>오리지널 크리처 이미지 생성</td><td>Google Cloud</td></tr>
+      <tr><td><span class="badge badge-red">영상 생성</span></td><td>Veo API (비동기 Job)</td><td>크리처 자기소개 영상 1~3분 생성</td><td>Google Cloud</td></tr>
+      <tr><td><span class="badge badge-red">스토리 생성</span></td><td>Gemini Flash</td><td>이름 추천 + 포켓몬 스타일 스토리 생성</td><td>Google Cloud</td></tr>
+      <tr><td><span class="badge badge-blue">스토리지</span></td><td>AWS S3 / Cloudflare R2</td><td>이미지, 영상 저장 및 CDN 서빙</td><td>Cloud</td></tr>
+    </table>
+
+    <!-- 4. 핵심 아키텍처 변경 -->
+    <h2><span class="section-num">04</span> 핵심 아키텍처 변경: Ollama 제거 → pgvector 임베딩</h2>
+
+    <div class="compare-grid">
+      <div class="compare-card old">
+        <h4>v4 방식 — Ollama 홈 서버</h4>
+        <ul>
+          <li>사용자 이미지 입력</li>
+          <li>MediaPipe 수치 추출</li>
+          <li>홈 GPU 서버에 Ollama 요청 (3~10초)</li>
+          <li>멀티모달 LLM 분석</li>
+          <li>Rule-based 속성 매핑</li>
+          <li>단일 결과 반환 (선택 불가)</li>
+        </ul>
+      </div>
+      <div class="compare-card new">
+        <h4>v5 방식 — pgvector 임베딩 DB</h4>
+        <ul>
+          <li>사용자 이미지 입력</li>
+          <li>MediaPipe 수치 추출</li>
+          <li>공통 스키마 JSON 생성 (28차원)</li>
+          <li>pgvector 코사인 유사도 검색 (&lt;500ms)</li>
+          <li>Top-3 포켓몬 + 근거 반환</li>
+          <li>사용자가 1~3위 중 직접 선택</li>
+        </ul>
+      </div>
+    </div>
+
+    <table>
+      <tr><th>평가 항목</th><th>Ollama 방식 (v4)</th><th>pgvector 방식 (v5)</th><th>승자</th></tr>
+      <tr><td>서버 의존성</td><td>홈 GPU 서버 필수</td><td>없음 (DB만 필요)</td><td><span class="badge badge-green">v5</span></td></tr>
+      <tr><td>응답 속도</td><td>3~10초 (GPU 의존)</td><td>&lt; 500ms</td><td><span class="badge badge-green">v5</span></td></tr>
+      <tr><td>월 운영 비용</td><td>서버 전기세 + 유지비</td><td>0원 (DB 구축 후 고정)</td><td><span class="badge badge-green">v5</span></td></tr>
+      <tr><td>결과 일관성</td><td>매 요청마다 다를 수 있음</td><td>동일 입력 = 동일 결과</td><td><span class="badge badge-green">v5</span></td></tr>
+      <tr><td>근거 제공</td><td>LLM 생성 (불안정)</td><td>스키마 값 기반 (명확)</td><td><span class="badge badge-green">v5</span></td></tr>
+      <tr><td>사용자 경험</td><td>단일 결과 (선택 불가)</td><td>Top-3 중 직접 선택</td><td><span class="badge badge-green">v5</span></td></tr>
+    </table>
+
+    <!-- 5. 공통 특징 스키마 -->
+    <h2><span class="section-num">05</span> 공통 특징 스키마 설계 (28차원 벡터)</h2>
+
+    <div class="vector-grid">
+      <div class="vector-card visual">
+        <div class="dim">10</div>
+        <div class="dim-label" style="color:#1a73e8">시각적 특징 (Visual)</div>
+        <div class="dim-items">
+          eye_size · eye_distance<br>
+          eye_roundness · eye_tail<br>
+          face_roundness · face_proportion<br>
+          feature_size · feature_emphasis<br>
+          mouth_curve · overall_symmetry
+        </div>
+      </div>
+      <div class="vector-card impression">
+        <div class="dim">9</div>
+        <div class="dim-label" style="color:#8e24aa">인상/성격 (Impression)</div>
+        <div class="dim-items">
+          cute · calm · smart<br>
+          fierce · gentle · lively<br>
+          innocent · confident · unique
+        </div>
+      </div>
+      <div class="vector-card type">
+        <div class="dim">8+1</div>
+        <div class="dim-label" style="color:#1e8449">타입 친화도 (Type) + 기타</div>
+        <div class="dim-items">
+          water · fire · grass<br>
+          electric · psychic · normal<br>
+          fighting · ghost<br>
+          + glasses (0/1)
+        </div>
+      </div>
+    </div>
+
+    <h3>데이터 추출 방법 비교</h3>
+    <table>
+      <tr><th>차원 카테고리</th><th>사람 (추출 방법)</th><th>포켓몬 (주석 방법)</th></tr>
+      <tr><td><strong>시각 (Visual)</strong></td><td>MediaPipe 468 랜드마크 → 수치 계산 → 0.0~1.0 정규화</td><td>Gemini Vision API → 스프라이트 이미지 분석 → JSON</td></tr>
+      <tr><td><strong>인상 (Impression)</strong></td><td>시각 수치에서 규칙 기반 유추 (가중치 공식 적용)</td><td>Gemini Flash → 도감 텍스트 + 타입 분석 → JSON</td></tr>
+      <tr><td><strong>타입 친화도</strong></td><td>인상 점수에서 역산 (가중치 공식)</td><td>TYPE_TO_AFFINITY 룰 테이블 자동 계산</td></tr>
+    </table>
+
+    <h3>인상 점수 산출 규칙 (사람 → 스코어)</h3>
+    <table>
+      <tr><th>스코어</th><th>산출 규칙</th><th>포켓몬 연결</th></tr>
+      <tr><td>cute</td><td>eye_size(H) + face_roundness(H) + feature_size(L)</td><td>작고 귀여운 포켓몬 계열</td></tr>
+      <tr><td>calm</td><td>mouth_curve(중립) + overall_symmetry(H) + eye_tail(낮음)</td><td>물 / 풀 타입 계열</td></tr>
+      <tr><td>smart</td><td>안경(+1.0) + eye_distance(L) + eye_roundness(L)</td><td>에스퍼 / 전기 타입</td></tr>
+      <tr><td>fierce</td><td>eye_tail(H) + face_roundness(L) + feature_emphasis(H)</td><td>격투 / 악 타입</td></tr>
+      <tr><td>gentle</td><td>mouth_curve(H) + face_roundness(H)</td><td>노말 / 페어리 타입</td></tr>
+      <tr><td>lively</td><td>mouth_curve(H) + eye_size(H) + feature_emphasis(H)</td><td>불 / 전기 타입</td></tr>
+      <tr><td>unique</td><td>eye_tail(극값) + feature_emphasis(H)</td><td>고스트 / 에스퍼 타입</td></tr>
+    </table>
+
+    <!-- 6. 포켓몬 DB 구축 -->
+    <h2><span class="section-num">06</span> 포켓몬 DB 구축 전략</h2>
+
+    <h3>대상 범위</h3>
+    <table>
+      <tr><th>세대</th><th>번호</th><th>마리 수</th><th>대표 포켓몬</th></tr>
+      <tr><td>1세대</td><td>#001 ~ #151</td><td>151마리</td><td>이상해씨, 파이리, 꼬부기</td></tr>
+      <tr><td>2세대</td><td>#152 ~ #251</td><td>100마리</td><td>치코리타, 브케인, 리아코</td></tr>
+      <tr><td>3세대</td><td>#252 ~ #386</td><td>135마리</td><td>나무지기, 아차모, 물짱이</td></tr>
+      <tr style="font-weight:700"><td>합계</td><td>#001 ~ #386</td><td>386마리</td><td></td></tr>
+    </table>
+
+    <h3>데이터 소스</h3>
+    <table>
+      <tr><th>소스</th><th>수집 항목</th><th>비고</th></tr>
+      <tr><td><strong>PokeAPI</strong></td><td>id, name_en/kr, types, stats, height, weight, abilities, sprite_url, color, shape, habitat, flavor_text(ko), is_legendary</td><td>구조 데이터 (무료 API)</td></tr>
+      <tr><td><strong>Fandom 위키</strong></td><td>한국어 도감 설명 보완</td><td>PokeAPI 미포함 세대 보완</td></tr>
+      <tr><td><strong>Gemini Vision</strong></td><td>visual 10차원 스코어 자동 주석</td><td>비용: ~$0.4 (1회성)</td></tr>
+      <tr><td><strong>Gemini Flash</strong></td><td>impression 9차원 스코어 추출</td><td>도감 텍스트 + 타입 → JSON</td></tr>
+    </table>
+
+    <!-- 7. 기술 스택 -->
+    <h2><span class="section-num">07</span> 확정 기술 스택 (v5)</h2>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-icon">🌐</div>
+        <div class="tech-name">Frontend</div>
+        <div class="tech-stack">Next.js 14 + TypeScript<br>Tailwind CSS</div>
+        <div class="tech-deploy">▸ Vercel 배포</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">⚡</div>
+        <div class="tech-name">Backend</div>
+        <div class="tech-stack">FastAPI + Python 3.11<br>Docker 컨테이너</div>
+        <div class="tech-deploy">▸ Railway 배포</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">👁</div>
+        <div class="tech-name">CV Pipeline</div>
+        <div class="tech-stack">OpenCV + MediaPipe<br>468 랜드마크</div>
+        <div class="tech-deploy">▸ Backend 내장</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🗄</div>
+        <div class="tech-name">벡터 DB</div>
+        <div class="tech-stack">PostgreSQL + pgvector<br>IVFFlat 코사인 인덱스</div>
+        <div class="tech-deploy">▸ Railway DB</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎨</div>
+        <div class="tech-name">이미지 생성</div>
+        <div class="tech-stack">Imagen 3<br>(Google Gemini API)</div>
+        <div class="tech-deploy">▸ Google Cloud</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎬</div>
+        <div class="tech-name">영상 생성</div>
+        <div class="tech-stack">Veo API (비동기 Job)<br>CSS Fallback</div>
+        <div class="tech-deploy">▸ Google Cloud</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📝</div>
+        <div class="tech-name">스토리 생성</div>
+        <div class="tech-stack">Gemini Flash<br>이름 추천 + 스토리</div>
+        <div class="tech-deploy">▸ Google Cloud</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📦</div>
+        <div class="tech-name">스토리지</div>
+        <div class="tech-stack">AWS S3 / Cloudflare R2<br>이미지/영상 CDN</div>
+        <div class="tech-deploy">▸ Cloud</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📣</div>
+        <div class="tech-name">외부 공유</div>
+        <div class="tech-stack">카카오 SDK<br>트위터 Intent + URL 복사</div>
+        <div class="tech-deploy">▸ Frontend SDK</div>
+      </div>
+    </div>
+
+    <h3>제거 확정 기술</h3>
+    <table>
+      <tr><th>제거 항목</th><th>제거 이유</th><th>대체</th></tr>
+      <tr class="risk-critical"><td><strong>Ollama 홈 GPU 서버</strong></td><td>서버 안정성 · 응답 속도 · 운영 비용 문제</td><td>pgvector 임베딩 DB</td></tr>
+      <tr class="risk-critical"><td><strong>FFmpeg 영상 합성</strong></td><td>서버 CPU 부담 · 배포 복잡도 · 3주 범위 초과</td><td>Veo API</td></tr>
+      <tr class="risk-high"><td><strong>TTS 음성 생성</strong></td><td>3주 구현 범위 초과</td><td>BGM 토글로 대체</td></tr>
+    </table>
+
+    <!-- 8. Phase 계획 -->
+    <h2><span class="section-num">08</span> Phase별 구현 계획 (3주)</h2>
+
+    <div class="timeline">
+      <div class="phase-card phase1">
+        <div class="phase-week">Week 1 · Phase 1</div>
+        <div class="phase-title">CV + 포켓몬 DB 코어</div>
+        <ul>
+          <li>Day 1 오전: 공통 스키마 확정 (BLOCKING)</li>
+          <li>Day 1 오후: API 명세 확정</li>
+          <li>Day 1~2: PokeAPI 배치 수집</li>
+          <li>Day 2~3: Gemini Vision 시각 주석</li>
+          <li>Day 2~3: LLM 인상 점수 추출</li>
+          <li>Day 3~4: pgvector DB 구축</li>
+          <li>Day 2~4: MediaPipe 변환 모듈</li>
+          <li>Day 4~5: Top-K 검색 API</li>
+          <li>Day 3~5: 프론트 선택 UI (Mock)</li>
+        </ul>
+      </div>
+      <div class="phase-card phase2">
+        <div class="phase-week">Week 2 · Phase 2</div>
+        <div class="phase-title">생성 파이프라인 + 연출</div>
+        <ul>
+          <li>Imagen 3 이미지 생성 연동</li>
+          <li>Gemini Flash 스토리 연동</li>
+          <li>Veo 비동기 Job + Polling</li>
+          <li>CSS Fallback 애니메이션</li>
+          <li>BGM 토글 (HTML5 Audio)</li>
+          <li>이름 인라인 편집 UI</li>
+          <li>외부 공유 버튼 (카카오/트위터)</li>
+          <li>S3 스토리지 연동</li>
+        </ul>
+      </div>
+      <div class="phase-card phase3">
+        <div class="phase-week">Week 3 · Phase 3</div>
+        <div class="phase-title">광장 + 안정화</div>
+        <ul>
+          <li>포켓 도감 광장 피드 구현</li>
+          <li>이모지 리액션 기능</li>
+          <li>실사용자 20장+ 테스트</li>
+          <li>API 응답 성능 최적화</li>
+          <li>발표 데모 시나리오 작성</li>
+          <li>Plan B: 3주차 월요일 기준 전환</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 9. 리스크 매트릭스 -->
+    <h2><span class="section-num">09</span> 리스크 매트릭스</h2>
+    <table>
+      <tr><th>위험도</th><th>항목</th><th>원인</th><th>대응 전략</th></tr>
+      <tr class="risk-critical">
+        <td><span class="badge badge-red">Critical</span></td>
+        <td>공통 스키마 Day 1 미확정</td>
+        <td>팀 합의 지연</td>
+        <td>Day 1 오전 전체 회의 필수, 타협안 사전 준비</td>
+      </tr>
+      <tr class="risk-critical">
+        <td><span class="badge badge-red">Critical</span></td>
+        <td>Gemini Vision 주석 품질 낮음</td>
+        <td>프롬프트 부정확</td>
+        <td>배치 후 팀 전체 검토 + 이상값 수동 수정</td>
+      </tr>
+      <tr class="risk-critical">
+        <td><span class="badge badge-red">Critical</span></td>
+        <td>NSFW 이미지 광장 노출</td>
+        <td>필터 우회</td>
+        <td>MediaPipe 얼굴 미검출 = 즉시 차단 (단일 룰)</td>
+      </tr>
+      <tr class="risk-high">
+        <td><span class="badge badge-orange">High</span></td>
+        <td>Veo 1~3분 대기 시 이탈</td>
+        <td>긴 생성 시간</td>
+        <td>비동기 + 로딩 UX + CSS Fallback 자동 전환</td>
+      </tr>
+      <tr class="risk-high">
+        <td><span class="badge badge-orange">High</span></td>
+        <td>포켓몬 IP 저작권 리스크</td>
+        <td>포켓몬 이미지 사용</td>
+        <td>내부 발표 한정. 공개 전 오리지널 크리처 전환 검토</td>
+      </tr>
+      <tr class="risk-high">
+        <td><span class="badge badge-orange">High</span></td>
+        <td>pgvector 매칭 부자연스러움</td>
+        <td>가중치 미조정</td>
+        <td>20+ 케이스 검증 + 팀 리뷰 후 가중치 튜닝</td>
+      </tr>
+      <tr class="risk-high">
+        <td><span class="badge badge-orange">High</span></td>
+        <td>카카오 SDK 앱 등록 지연</td>
+        <td>심사 기간</td>
+        <td>2주차 시작일 즉시 등록 신청</td>
+      </tr>
+      <tr class="risk-medium">
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td>PokeAPI rate limit</td>
+        <td>초당 요청 초과</td>
+        <td>배치 수집 시 딜레이(100ms) + 로컬 캐싱</td>
+      </tr>
+      <tr class="risk-medium">
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td>Imagen 3 프롬프트 일관성</td>
+        <td>프롬프트 미완성</td>
+        <td>1주차 반복 실험으로 프롬프트 템플릿 고정</td>
+      </tr>
+      <tr class="risk-medium">
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td>API 비용 초과</td>
+        <td>개발 중 실 API 남용</td>
+        <td>USE_MOCK_AI=true 개발 / 발표 직전만 실 API</td>
+      </tr>
+    </table>
+
+    <!-- 10. v4 vs v5 -->
+    <h2><span class="section-num">10</span> v4 → v5 변경사항 요약</h2>
+    <table>
+      <tr><th>항목</th><th>v4</th><th>v5 (최종)</th></tr>
+      <tr><td>LLM 서버</td><td>Ollama 홈 GPU 서버 (선택)</td><td><strong>제거</strong></td></tr>
+      <tr><td>얼굴 분석</td><td>Ollama 멀티모달</td><td><strong>MediaPipe 수치 → 공통 스키마</strong></td></tr>
+      <tr><td>포켓몬 매칭</td><td>Rule-based 속성 매핑</td><td><strong>pgvector 코사인 유사도 Top-K</strong></td></tr>
+      <tr><td>결과 제공</td><td>단일 캐릭터</td><td><strong>Top-3 포켓몬 + 근거 + 사용자 선택</strong></td></tr>
+      <tr><td>포켓몬 DB</td><td>미정</td><td><strong>1~3세대 386마리, PokeAPI + Gemini Vision 배치 구축</strong></td></tr>
+      <tr><td>공통 스키마</td><td>미정</td><td><strong>28차원: 시각(10) + 인상(9) + 타입친화도(8) + 기타(1)</strong></td></tr>
+      <tr><td>응답 속도</td><td>3~10초</td><td><strong>&lt; 500ms (벡터 검색)</strong></td></tr>
+      <tr><td>BGM</td><td>토글 ON/OFF</td><td>동일 유지</td></tr>
+      <tr><td>외부 공유</td><td>카카오/트위터/URL</td><td>동일 유지</td></tr>
+      <tr><td>이름</td><td>LLM 추천 + 직접 입력</td><td>동일 유지</td></tr>
+      <tr><td>영상 생성</td><td>Veo API</td><td>동일 유지</td></tr>
+      <tr><td>SNS 광장</td><td>포켓 도감 광장</td><td>동일 유지</td></tr>
+    </table>
+
+  </div><!-- end content -->
+
+  <div class="doc-footer">
+    Pokéman Project · 5박사연구소 · K디지털 NVIDIA AI ACADEMY · v5.0 최종확정 · 2026.03.06
+  </div>
+</div>
+</body>
+</html>
