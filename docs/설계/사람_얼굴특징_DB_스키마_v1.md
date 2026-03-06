@@ -18,9 +18,9 @@
 
 | 컬럼명 (Column) | 데이터 타입 | 설명 (Description) | 예시 / 범위 |
 | :--- | :--- | :--- | :--- |
-| `session_id` | VARCHAR(50) | PK, 사용자 고유 세션 ID | "sess_1a2b3c" |
-| `image_url` | VARCHAR(255) | 업로드된 원본/전처리된 이미지 경로 | "s3://.../img.jpg" |
-| `created_at` | TIMESTAMP | 데이터 추출 시간 | 2026-03-05 14:00:00 |
+| `session_id` | VARCHAR(50) | PK, 사용자 고유 세션 ID | "sess_1a2b3c" | #
+| `image_url` | VARCHAR(255) | 업로드된 원본/전처리된 이미지 경로 | "s3://.../img.jpg" | 
+
 
 ### 2.2. 얼굴형 데이터 (Face Shape)
 얼굴 전체의 윤곽과 형태를 나타내는 데이터입니다. (포켓몬의 체력/방어력, 무게 매핑에 유리)
@@ -29,9 +29,9 @@
 | :--- | :--- | :--- | :--- |
 | `face_aspect_ratio` | FLOAT | 얼굴 가로/세로 비율 | `가로 길이 / 세로 길이` (높을수록 둥글/넓적함) |
 | `jawline_angle` | FLOAT | 턱선의 각도 (V라인 vs U라인) | 귀 아래-턱끝-반대 귀 아래의 각도 |
-| `cheek_width_ratio` | FLOAT | 광대뼈 너비 비율 | `광대 너비 / 얼굴 전체 세로` |
 
-### 2.3. 눈/눈썹 데이터 (Eye & Eyebrow)
+
+### 2.3. 눈 데이터 (Eye)
 인상을 결정짓는 가장 중요한 요소입니다. (포켓몬의 공격력, 특수공격, 속성(에스퍼, 고스트 등) 매핑에 유리)
 
 | 컬럼명 (Column) | 데이터 타입 | 설명 (Description) | 추출 기준 (예시) |
@@ -39,7 +39,7 @@
 | `eye_size_ratio` | FLOAT | 눈의 상대적 크기 | `눈 세로 넓이 / 얼굴 세로 길이` |
 | `eye_distance_ratio` | FLOAT | 미간 넓이 (눈 사이 거리) | `미간 거리 / 얼굴 가로 길이` (높을수록 먼 눈) |
 | `eye_slant_angle` | FLOAT | 눈꼬리 각도 (고양이상/강아지상) | 눈 앞머리와 눈꼬리를 이은 선의 각도 (+는 올라감, -는 처짐) |
-| `eyebrow_thickness`| FLOAT | 눈썹의 두께 | `눈썹 세로 두께 / 눈썹 가로 길이` |
+
 
 ### 2.4. 코/입 데이터 (Nose & Mouth)
 특정 포켓몬(돼지, 새, 파충류 류)이나 성격을 매핑할 때 유용한 데이터입니다.
@@ -50,6 +50,8 @@
 | `nose_width_ratio` | FLOAT | 코볼(콧망울) 넓이 비율 | `코볼 너비 / 얼굴 가로 너비` |
 | `mouth_width_ratio`| FLOAT | 입의 가로 길이 비율 | `입꼬리 간 거리 / 얼굴 가로 너비` |
 | `lip_thickness_ratio`| FLOAT | 입술 두께 비율 | `입술 세로 두께 / 입 가로 길이` |
+| `Philtrum_ratio`| FLOAT | 인중 길이 비율 | ` 짧다 / 길다 ` |
+
 
 ### 2.5. 스타일 및 부가 특징 (Accessories & Style)
 객체 인식(Object Detection)을 통해 추출하는 불리언(Boolean) 데이터입니다. (특정 타입이나 특성 매핑에 결정적 역할)
@@ -65,9 +67,10 @@
 
 | 컬럼명 (Column) | 데이터 타입 | 설명 (Description) | 추출 기준 및 활용 |
 | :--- | :--- | :--- | :--- |
-| `dominant_color` | VARCHAR(7) | 사진의 지배적인 주조색(Hex) | 배경/의상 색상 (예: 파란색 -> 물 속성) |
 | `smile_score` | FLOAT | 웃음 정도 (0.0 ~ 1.0) | 입꼬리 올라감 기반 (높을수록 페어리, 노말 타입) |
 | `emotion_class` | VARCHAR(20) | 주요 감정 (기쁨, 슬픔, 무표정 등) | 표정 분류 모델 결과값 |
+| `personality_class` | VARCHAR(25) | 주요 성격 (건방진, 조심스러운, 외로움을 타는 등) | 성격 분류 결과값, 중복 4개 선택|
+
 
 ---
 
