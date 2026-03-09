@@ -1,12 +1,24 @@
 # Claude/Codex 공통 AI 코딩 규칙
 
+## 0. 작업 시작 전 필수 프로토콜
+
+**모든 작업은 `00_pre_work_protocol.md`를 먼저 따른다.**
+
+순서 요약:
+1. 계획 보고 (Phase/Stage/내용/이유/최선 근거)
+2. 사용자로부터 "동의합니다." 수신
+3. 착수 전 필수 질문 3가지 제시 및 답변 수신
+4. 그 이후에만 실제 작업 시작
+
+---
+
 ## 1. AI 실행 전 필수 입력
 
 AI에게 작업을 요청할 때 아래 4개를 항상 제공한다.
 
 1. `docs/common_rule/<파트>_context.md`
-2. `docs/develop_rule/01_global_rules.md`
-3. `docs/develop_rule/03_stage_completion_and_devlog.md`
+2. `docs/develop_rule/00_pre_work_protocol.md`
+3. `docs/develop_rule/01_global_rules.md`
 4. 현재 Stage 목표/범위/완료조건
 
 ## 2. AI 출력 형식 규칙
