@@ -1,5 +1,6 @@
 .env
 .env.local
+backend/.env
 .venv/
 .pytest_cache/
 __pycache__/

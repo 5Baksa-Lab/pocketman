@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.db import get_connection, get_dict_cursor
+from app.core.db import get_connection, get_dict_cursor, release_connection
 
 
 VALID_STATUSES = {"queued", "running", "succeeded", "failed", "canceled"}
@@ -29,7 +29,7 @@ def create_veo_job(creature_id: str) -> dict[str, Any]:
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def get_veo_job(job_id: str) -> dict[str, Any] | None:
@@ -47,7 +47,7 @@ def get_veo_job(job_id: str) -> dict[str, Any] | None:
         row = cursor.fetchone()
         return dict(row) if row else None
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def update_veo_job(
@@ -81,7 +81,7 @@ def update_veo_job(
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def creature_exists_for_job(creature_id: str) -> bool:
@@ -91,4 +91,4 @@ def creature_exists_for_job(creature_id: str) -> bool:
         cursor.execute("SELECT 1 FROM creatures WHERE id = %s;", (creature_id,))
         return cursor.fetchone() is not None
     finally:
-        conn.close()
+        release_connection(conn)

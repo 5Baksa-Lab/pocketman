@@ -28,7 +28,7 @@ frontend/
 ├── lib/
 │   ├── api.ts              # 백엔드 API 호출 함수 (matchPokemon, generateCreature, pollVeoStatus 등)
 │   └── types.ts            # MatchResult, Creature, PlazaItem 등 공통 타입
-├── .env.example            # NEXT_PUBLIC_API_URL
+├── .env.example            # NEXT_PUBLIC_API_BASE_URL
 └── package.json
 ```
 
@@ -58,7 +58,7 @@ upload → analyzing → top3 → generating → result
 2. Veo 폴링/타임아웃/재시도 분기는 `lib/api.ts`의 `pollVeoStatus` 함수에서 처리한다.
 3. 로딩/에러/빈 상태를 모든 핵심 화면에서 명시한다.
 4. 낙관적 업데이트는 롤백 경로를 반드시 포함한다.
-5. 환경변수는 `NEXT_PUBLIC_API_URL`만 사용하고 하드코딩 금지.
+5. 환경변수는 `NEXT_PUBLIC_API_BASE_URL`만 사용하고 하드코딩 금지.
 6. `lib/types.ts`에 없는 타입을 인라인으로 정의하지 않는다. 먼저 공통 타입에 추가한다.
 7. 신규 페이지는 `app/<feature>/page.tsx` 구조를 따른다.
 

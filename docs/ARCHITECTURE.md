@@ -67,7 +67,7 @@
 ┌──────────────────┐      ┌────────────────────────────────────────┐
 │   PostgreSQL 17  │      │         외부 AI API                     │
 │   + pgvector     │      │                                        │
-│  (Docker / :5432)│      │  ├─ Gemini 1.5 Flash  (이름/스토리)    │
+│  (Railway DB)    │      │  ├─ Gemini 1.5 Flash  (이름/스토리)    │
 │                  │      │  ├─ Imagen 3          (크리처 이미지)   │
 │  pokemon_vectors │      │  └─ Veo API           (소개 영상)      │
 │  creatures       │      │                                        │
@@ -153,7 +153,7 @@
 | 항목 | 심각도 | 위치 |
 |------|--------|------|
 | `cv_adapter.py` 임시 파일 try/finally 누락 | 높음 | `backend/app/adapter/cv_adapter.py:78` |
-| CORS `allow_origins=["*"]` | 높음 | `backend/app/main.py:25` |
+| CORS 운영 도메인 값 검증 (`ALLOWED_ORIGINS`) | 중간 | `.env` |
 | DB 커넥션 풀 미구현 | 중간 | `backend/app/core/db.py` |
 | Rate limiting 없음 | 중간 | 전 라우터 |
 | 카카오톡 공유 미구현 | 중간 | `frontend/app/page.tsx` |
@@ -168,11 +168,12 @@
 ### 사전 준비
 
 ```bash
-# 1. .env 파일 생성 (backend 루트에)
-cp backend/.env.example backend/.env  # 없으면 직접 생성
+# 1. .env 파일 생성 (저장소 루트)
+cp .env.example .env  # 없으면 직접 생성
 
-# backend/.env 내용:
-DATABASE_URL=postgresql://pocketman:pocketman@localhost:5432/pocketman
+# .env 내용 (Railway DB)
+DATABASE_URL=postgresql://postgres:<password>@<tcp-proxy-host>:<port>/railway
+ALLOWED_ORIGINS=http://localhost:3000
 GEMINI_API_KEY=your_key_here
 IMAGEN_API_URL=your_imagen_endpoint
 VEO_API_URL=your_veo_endpoint
@@ -180,20 +181,14 @@ USE_MOCK_AI=true          # API 키 없어도 테스트 가능
 GEMINI_FLASH_MODEL=gemini-1.5-flash-002
 ```
 
-### Step 1. DB 기동 + 스키마 적용
+### Step 1. Railway DB 스키마 적용
 
 ```bash
-# DB 컨테이너 기동
-docker compose up -d db
-
-# 정상 기동 확인 (healthy 상태까지 대기)
-docker compose ps
-
 # 스키마 적용
-docker exec -i pocketman-db psql -U pocketman -d pocketman < database/01_schema.sql
+psql "$DATABASE_URL" -f database/01_schema.sql
 
 # 테이블 생성 확인 (10개)
-docker exec pocketman-db psql -U pocketman -d pocketman -c "\dt"
+psql "$DATABASE_URL" -c "\dt"
 ```
 
 ### Step 2. MLOps 데이터 파이프라인 (최초 1회)

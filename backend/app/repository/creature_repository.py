@@ -6,7 +6,7 @@ from typing import Any
 
 import psycopg2.extras
 
-from app.core.db import get_connection, get_dict_cursor
+from app.core.db import get_connection, get_dict_cursor, release_connection
 
 
 CREATURE_COLUMNS = """
@@ -56,7 +56,7 @@ def create_creature(payload: dict[str, Any]) -> dict[str, Any]:
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def get_creature_by_id(creature_id: str) -> dict[str, Any] | None:
@@ -75,7 +75,7 @@ def get_creature_by_id(creature_id: str) -> dict[str, Any] | None:
         row = cursor.fetchone()
         return dict(row) if row else None
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def list_public_creatures(limit: int, offset: int) -> list[dict[str, Any]]:
@@ -95,7 +95,7 @@ def list_public_creatures(limit: int, offset: int) -> list[dict[str, Any]]:
         )
         return [dict(r) for r in cursor.fetchall()]
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def creature_exists(creature_id: str) -> bool:
@@ -105,7 +105,7 @@ def creature_exists(creature_id: str) -> bool:
         cursor.execute("SELECT 1 FROM creatures WHERE id = %s;", (creature_id,))
         return cursor.fetchone() is not None
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def create_reaction(creature_id: str, emoji_type: str) -> dict[str, Any]:
@@ -127,7 +127,7 @@ def create_reaction(creature_id: str, emoji_type: str) -> dict[str, Any]:
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def get_reaction_summary(creature_id: str) -> list[dict[str, Any]]:
@@ -146,7 +146,7 @@ def get_reaction_summary(creature_id: str) -> list[dict[str, Any]]:
         )
         return [dict(r) for r in cursor.fetchall()]
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def get_creature_generation_context(creature_id: str) -> dict[str, Any] | None:
@@ -180,7 +180,7 @@ def get_creature_generation_context(creature_id: str) -> dict[str, Any] | None:
         row = cursor.fetchone()
         return dict(row) if row else None
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def update_creature_generated_fields(
@@ -216,7 +216,7 @@ def update_creature_generated_fields(
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def update_creature_video_url(creature_id: str, video_url: str) -> dict[str, Any] | None:
@@ -244,4 +244,4 @@ def update_creature_video_url(creature_id: str, video_url: str) -> dict[str, Any
         conn.rollback()
         raise
     finally:
-        conn.close()
+        release_connection(conn)

@@ -11,15 +11,14 @@ pip install -r scripts/requirements.txt
 ### 2. 환경변수 설정 (`.env`)
 
 ```dotenv
-DATABASE_URL=postgresql://pocketman_user:pocketman_pass@localhost:5433/pocketman_db
+DATABASE_URL=postgresql://postgres:<password>@<tcp-proxy-host>:<port>/railway
 GEMINI_API_KEY=your_api_key_here
 USE_MOCK_AI=true
 ```
 
-### 3. DB 컨테이너 실행 + 스키마 적용
+### 3. Railway DB 스키마 적용
 
 ```bash
-docker compose up -d db
 psql "$DATABASE_URL" -f database/01_schema.sql
 ```
 

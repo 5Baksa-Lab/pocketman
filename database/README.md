@@ -34,14 +34,15 @@
 [27]    glasses 1차원   : 0.0 or 1.0
 ```
 
-## DB 환경 구축 방법
+## DB 환경 구축 방법 (Railway-only)
 
 ```bash
-# 1. Docker 컨테이너 실행
-docker compose up -d
+# 1. Railway DATABASE_URL 설정
+# 예: postgresql://postgres:<password>@<tcp-proxy-host>:<port>/railway
+export DATABASE_URL="postgresql://postgres:<password>@<tcp-proxy-host>:<port>/railway"
 
 # 2. 스키마 적용
-docker exec -i pocketman_db psql -U pocketman_user -d pocketman_db < database/01_schema.sql
+psql "$DATABASE_URL" -f database/01_schema.sql
 
 # 3. 파이프라인 실행 (데이터 채우기)
 python scripts/01_fetch_pokeapi.py          # 포켓몬 기본 정보 수집

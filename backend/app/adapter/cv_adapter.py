@@ -10,6 +10,7 @@ scripts/user_poc/extractor.py 의 MediaPipe 로직을 재사용
 """
 import sys
 import numpy as np
+import os
 from pathlib import Path
 
 # scripts 폴더를 path에 추가 (로컬/컨테이너 레이아웃 모두 대응)
@@ -81,10 +82,11 @@ def build_user_vector(image_bytes: bytes) -> tuple[np.ndarray, dict]:
         tmp_path = tmp.name
 
     extractor = UserFaceFeatureExtractor()
-    result, _ = extractor.extract(tmp_path)
-
-    import os
-    os.unlink(tmp_path)
+    try:
+        result, _ = extractor.extract(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
     if result.get("poc_status") == "failed":
         error_code = result.get("poc_error_code", "")

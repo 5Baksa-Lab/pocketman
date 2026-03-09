@@ -2,7 +2,7 @@
 Pokemon Repository — DB 쿼리 전담 레이어
 """
 import numpy as np
-from app.core.db import get_connection, get_dict_cursor
+from app.core.db import get_connection, get_dict_cursor, release_connection
 from app.core.config import TOP_K
 
 
@@ -64,7 +64,7 @@ def search_top_k(user_vector: np.ndarray, k: int = TOP_K) -> list[dict]:
         cursor.execute(sql, {"vec": vec_literal, "k": k})
         return [dict(r) for r in cursor.fetchall()]
     finally:
-        conn.close()
+        release_connection(conn)
 
 
 def get_db_stats() -> dict:
@@ -79,4 +79,4 @@ def get_db_stats() -> dict:
         """)
         return dict(cursor.fetchone())
     finally:
-        conn.close()
+        release_connection(conn)

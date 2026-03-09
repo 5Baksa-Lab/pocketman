@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.routers import creatures, generation, health, match, veo
+from app.core.config import ALLOWED_ORIGINS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +23,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 개발 중 전체 허용, 배포 시 프론트 도메인으로 제한
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
