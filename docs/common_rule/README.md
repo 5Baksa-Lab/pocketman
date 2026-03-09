@@ -32,7 +32,8 @@
 1. `docs/common_rule/<파트>_context.md`
 2. `docs/develop_rule/01_global_rules.md`
 3. `docs/develop_rule/02_ai_coding_rules.md`
-4. 현재 Stage 목표/범위
+4. `docs/ARCHITECTURE.md` (시스템 전체 구조 참고)
+5. 현재 Stage 목표/범위
 
 ---
 
@@ -41,3 +42,4 @@
 - 파트 컨텍스트는 동시에 여러 개를 섞지 않는다. (주 역할 1개만)
 - 교차 파트 작업이 필요한 경우, 주 파트 컨텍스트를 기준으로 하되 인터페이스 변경은 PM 승인 후 진행한다.
 - 컨텍스트가 규칙을 대체하지 않는다. (실행 규칙은 `develop_rule`이 최우선)
+- `scripts/shared/feature_mapping.py` 변경은 MLOps + Backend 양쪽에 영향을 준다. 반드시 공지 후 진행.
