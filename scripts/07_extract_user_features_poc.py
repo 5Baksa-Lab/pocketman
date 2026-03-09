@@ -19,6 +19,7 @@ import csv
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 try:
@@ -37,6 +38,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger(__name__)
+SAFE_TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def collect_images(input_dir: Path) -> list[Path]:
@@ -82,6 +84,9 @@ def get_db_connection():
 
 
 def upsert_to_db(rows: list[dict], table_name: str) -> None:
+    if not SAFE_TABLE_NAME_RE.match(table_name):
+        raise ValueError(f"허용되지 않는 테이블명입니다: {table_name}")
+
     success_rows = [r for r in rows if r.get("poc_status") == "success"]
     if not success_rows:
         log.warning("DB 저장할 success row가 없어 건너뜁니다.")
@@ -203,7 +208,11 @@ def run(input_dir: Path, output_dir: Path, limit: int, write_db: bool, table_nam
     log.info("추출 결과: success=%d fail=%d success_rate=%.1f%%", success_count, fail_count, success_rate)
 
     if write_db:
-        upsert_to_db(rows, table_name=table_name)
+        try:
+            upsert_to_db(rows, table_name=table_name)
+        except Exception as exc:
+            log.error("DB upsert 실패: %s", exc)
+            return 1
 
     return 0
 
