@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-
-import "./globals.css";
+import type { Metadata } from "next"
+import { Header } from "@/components/layout/Header"
+import { MobileNav } from "@/components/layout/MobileNav"
+import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Pocketman Frontend",
-  description: "업로드-매칭-생성-공유-광장 피드 프론트엔드"
-};
+  title: "Pocketman — 내 얼굴을 닮은 포켓몬",
+  description: "AI가 얼굴을 분석해 나만의 포켓몬 크리처를 만들어드립니다.",
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,25 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="aurora aurora-a" aria-hidden />
         <div className="aurora aurora-b" aria-hidden />
-
-        <header className="sticky top-0 z-50 border-b border-white/20 bg-base/85 backdrop-blur-md">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
-            <Link href="/" className="brand text-ink">
-              POCKETMAN
-            </Link>
-            <nav className="flex gap-2">
-              <Link href="/" className="nav-pill">
-                매칭/생성
-              </Link>
-              <Link href="/plaza" className="nav-pill">
-                광장 피드
-              </Link>
-            </nav>
-          </div>
-        </header>
-
-        <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8">{children}</main>
+        <Header />
+        <main className="pb-20 lg:pb-0">{children}</main>
+        <MobileNav />
       </body>
     </html>
-  );
+  )
 }
