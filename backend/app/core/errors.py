@@ -54,3 +54,27 @@ class InvalidRequestError(PocketmanError):
             "error_code": error_code,
             "message": message,
         })
+
+
+class UnauthorizedError(PocketmanError):
+    def __init__(self, message: str = "인증이 필요합니다.", error_code: str = "UNAUTHORIZED"):
+        super().__init__(status_code=401, detail={
+            "error_code": error_code,
+            "message": message,
+        })
+
+
+class ForbiddenError(PocketmanError):
+    def __init__(self, message: str = "접근 권한이 없습니다.", error_code: str = "FORBIDDEN"):
+        super().__init__(status_code=403, detail={
+            "error_code": error_code,
+            "message": message,
+        })
+
+
+class ConflictError(PocketmanError):
+    def __init__(self, message: str = "이미 존재하는 리소스입니다.", error_code: str = "CONFLICT"):
+        super().__init__(status_code=409, detail={
+            "error_code": error_code,
+            "message": message,
+        })

@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -24,6 +25,78 @@ const config: Config = {
       },
       borderRadius: {
         xl2: "1.25rem"
+      },
+      keyframes: {
+        // PokemonCard — sprite bounce (davidkpiano design)
+        "bounce-head": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" }
+        },
+        // Pokemon Parade — sprite sheet step (simeydotme design)
+        "poke-walk": {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "-576px 0" }
+        },
+        // Pokemon Parade — horizontal movement
+        "poke-move": {
+          "0%": { transform: "translateX(110vw)" },
+          "100%": { transform: "translateX(-110px)" }
+        },
+        // General entrance fade
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" }
+        },
+        // Login card slide up
+        "slide-up": {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" }
+        },
+        // Result page card reveal
+        "card-reveal": {
+          "0%": { opacity: "0", transform: "scale(0.92) translateY(16px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)" }
+        },
+        // Login page — pokemon eyes look left/right
+        "eyes-look": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "30%": { transform: "translateX(-2px)" },
+          "70%": { transform: "translateX(2px)" }
+        },
+        // Login page — pokemon eye blink
+        "eye-blink": {
+          "0%, 90%, 100%": { transform: "scaleY(1)" },
+          "95%": { transform: "scaleY(0.08)" }
+        },
+        // Login page mobile — cloud drift
+        "cloud-move": {
+          "0%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(12px)" },
+          "100%": { transform: "translateX(0)" }
+        },
+        // Login page mobile — Pidgey fly
+        "pidgey-fly": {
+          "0%, 100%": { transform: "translateY(0) rotate(-4deg)" },
+          "50%": { transform: "translateY(-8px) rotate(4deg)" }
+        },
+        // Login page mobile — Pikachu tail wag
+        "pikachu-tail": {
+          "0%, 100%": { transform: "rotate(-10deg)" },
+          "50%": { transform: "rotate(10deg)" }
+        }
+      },
+      animation: {
+        "bounce-head": "bounce-head 1s ease-in-out infinite",
+        "poke-walk": "poke-walk 0.6s steps(6) infinite",
+        "poke-move": "poke-move 6s linear infinite",
+        "fade-in": "fade-in 0.4s ease-out forwards",
+        "slide-up": "slide-up 0.5s ease-out forwards",
+        "card-reveal": "card-reveal 0.6s ease-out forwards",
+        "eyes-look": "eyes-look 3s ease-in-out infinite",
+        "eye-blink": "eye-blink 4s ease-in-out infinite",
+        "cloud-move": "cloud-move 5s ease-in-out infinite",
+        "pidgey-fly": "pidgey-fly 2s ease-in-out infinite",
+        "pikachu-tail": "pikachu-tail 0.6s ease-in-out infinite"
       }
     }
   },

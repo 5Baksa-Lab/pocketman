@@ -131,6 +131,11 @@ class VeoJobResponse(BaseModel):
 
 # ── 생성 파이프라인 스키마 ───────────────────────────────────────────────────
 
+class CreaturePatchRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=40)
+    is_public: Optional[bool] = None
+
+
 class GenerationStartRequest(BaseModel):
     regenerate_name_story: bool = True
     regenerate_image: bool = True
@@ -150,3 +155,132 @@ class GenerationPipelineResponse(BaseModel):
     image: GenerationStepMeta
     story: GenerationStepMeta
     video: GenerationStepMeta
+
+
+# ── Creature Detail / Like / Comment 스키마 ─────────────────────────────────
+
+class CreatureOwnerInfo(BaseModel):
+    id: str
+    nickname: str
+
+
+class CreatureDetailResponse(BaseModel):
+    id: str
+    matched_pokemon_id: int
+    match_rank: int
+    similarity_score: float
+    match_reasons: list[dict[str, Any]]
+    name: str
+    story: Optional[str]
+    image_url: Optional[str]
+    video_url: Optional[str]
+    is_public: bool
+    created_at: datetime
+    matched_pokemon_name_kr: Optional[str] = None
+    primary_type: Optional[str] = None
+    secondary_type: Optional[str] = None
+    owner: Optional[CreatureOwnerInfo] = None
+    like_count: int = 0
+    is_liked: bool = False
+
+
+class LikeResponse(BaseModel):
+    like_count: int
+
+
+class CommentAuthorInfo(BaseModel):
+    id: str
+    nickname: str
+
+
+class CommentResponse(BaseModel):
+    id: str
+    content: str
+    author: CommentAuthorInfo
+    created_at: datetime
+    is_mine: bool
+
+
+class CommentListResponse(BaseModel):
+    items: list[CommentResponse]
+    total: int
+    page: int
+
+
+class CommentCreateRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=100)
+
+
+class MyCreatureItem(BaseModel):
+    id: str
+    name: str
+    is_public: bool
+    image_url: Optional[str]
+    created_at: datetime
+    matched_pokemon_name_kr: Optional[str] = None
+
+
+class MyCreatureListResponse(BaseModel):
+    items: list[MyCreatureItem]
+    total: int
+
+
+# ── User Profile 스키마 ──────────────────────────────────────────────────────
+
+class UserProfileResponse(BaseModel):
+    id: str
+    email: str
+    nickname: str
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    dark_mode: bool = False
+    font_size: int = 16
+    creature_count: int = 0
+    like_received_count: int = 0
+
+
+class UserUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=50)
+    bio: Optional[str] = Field(default=None, max_length=100)
+    avatar_creature_id: Optional[str] = None
+    dark_mode: Optional[bool] = None
+    font_size: Optional[int] = Field(default=None, ge=12, le=24)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=100)
+    new_password: str = Field(min_length=8, max_length=100)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: Optional[str] = None
+
+
+class NicknameAvailabilityResponse(BaseModel):
+    available: bool
+
+
+# ── Auth 스키마 ──────────────────────────────────────────────────────────────
+
+class AuthRegisterRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    nickname: str = Field(min_length=2, max_length=50)
+    password: str = Field(min_length=8, max_length=100)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    password: str = Field(min_length=1, max_length=100)
+
+
+class AuthUserResponse(BaseModel):
+    id: str
+    email: str
+    nickname: str
+    created_at: datetime
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUserResponse

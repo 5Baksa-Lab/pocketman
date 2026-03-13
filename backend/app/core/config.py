@@ -1,8 +1,11 @@
 """
 앱 설정 (환경변수 기반)
 """
+import logging
 import os
 from dotenv import load_dotenv
+
+_log = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -29,3 +32,14 @@ DB_POOL_MAX_CONN: int = int(os.environ.get("DB_POOL_MAX_CONN", "10"))
 # 매칭 설정
 TOP_K: int = 3
 VECTOR_DIM: int = 28
+
+# Auth 설정
+_JWT_SECRET_KEY_RAW: str = os.environ.get("JWT_SECRET_KEY", "")
+if not _JWT_SECRET_KEY_RAW:
+    raise RuntimeError(
+        "JWT_SECRET_KEY 환경변수가 설정되지 않았습니다. "
+        ".env 또는 Railway 환경변수에 JWT_SECRET_KEY를 추가해주세요."
+    )
+JWT_SECRET_KEY: str = _JWT_SECRET_KEY_RAW
+JWT_ALGORITHM: str = "HS256"
+JWT_ACCESS_TOKEN_EXPIRE_HOURS: int = 24
