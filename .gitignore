@@ -9,3 +9,10 @@ outputs/
 
 scripts/poc_images/*
 !scripts/poc_images/.gitkeep
+
+# Frontend build artifacts
+frontend/.next/
+frontend/node_modules/
+frontend/*.tsbuildinfo
+frontend/.DS_Store
+frontend/public/.DS_Store
