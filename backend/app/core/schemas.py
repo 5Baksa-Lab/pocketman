@@ -76,6 +76,7 @@ class CreatureResponse(BaseModel):
     story: Optional[str]
     image_url: Optional[str]
     video_url: Optional[str]
+    sprite_url: Optional[str] = None
     is_public: bool
     created_at: datetime
     matched_pokemon_name_kr: Optional[str] = None
@@ -174,6 +175,7 @@ class CreatureDetailResponse(BaseModel):
     story: Optional[str]
     image_url: Optional[str]
     video_url: Optional[str]
+    sprite_url: Optional[str] = None
     is_public: bool
     created_at: datetime
     matched_pokemon_name_kr: Optional[str] = None
@@ -248,8 +250,8 @@ class UserUpdateRequest(BaseModel):
 
 
 class PasswordChangeRequest(BaseModel):
-    current_password: str = Field(min_length=1, max_length=100)
-    new_password: str = Field(min_length=8, max_length=100)
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
 
 
 class DeleteAccountRequest(BaseModel):
@@ -265,12 +267,12 @@ class NicknameAvailabilityResponse(BaseModel):
 class AuthRegisterRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
     nickname: str = Field(min_length=2, max_length=50)
-    password: str = Field(min_length=8, max_length=100)
+    password: str = Field(min_length=8, max_length=72)
 
 
 class AuthLoginRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
-    password: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=72)
 
 
 class AuthUserResponse(BaseModel):

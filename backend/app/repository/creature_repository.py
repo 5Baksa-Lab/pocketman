@@ -19,6 +19,7 @@ CREATURE_COLUMNS = """
     c.story,
     c.image_url,
     c.video_url,
+    c.sprite_url,
     c.is_public,
     c.user_id,
     c.created_at,
@@ -405,6 +406,34 @@ def patch_creature(creature_id: str, fields: dict[str, Any]) -> dict[str, Any] |
             RETURNING {CREATURE_COLUMNS};
             """,
             params,
+        )
+        row = cursor.fetchone()
+        if row:
+            conn.commit()
+            return dict(row)
+        conn.rollback()
+        return None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def update_creature_sprite_url(creature_id: str, sprite_url: str) -> dict[str, Any] | None:
+    conn = get_connection()
+    try:
+        cursor = get_dict_cursor(conn)
+        cursor.execute(
+            f"""
+            UPDATE creatures c
+            SET sprite_url = %s
+            FROM pokemon_master m
+            WHERE c.matched_pokemon_id = m.pokemon_id
+              AND c.id = %s
+            RETURNING {CREATURE_COLUMNS};
+            """,
+            (sprite_url, creature_id),
         )
         row = cursor.fetchone()
         if row:

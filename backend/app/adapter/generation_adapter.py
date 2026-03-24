@@ -88,6 +88,12 @@ class VideoResult:
     meta: StepMeta
 
 
+@dataclass
+class SpriteResult:
+    sprite_url: str
+    meta: StepMeta
+
+
 # ── Retry helper ────────────────────────────────────────────────────
 
 
@@ -160,8 +166,8 @@ def _fallback_story(context: dict[str, Any]) -> str:
 
 
 def _fallback_image_url(context: dict[str, Any]) -> str:
-    label = context.get("matched_pokemon_name_kr") or "Creature"
-    return f"https://placehold.co/1024x1024/png?text={quote(str(label))}"
+    label = context.get("matched_pokemon_name_en") or "Creature"
+    return f"https://placehold.co/1024x1024/4a9fa5/ffffff/png?text={quote(str(label))}"
 
 
 def _mock_video_url(context: dict[str, Any]) -> str:
@@ -229,11 +235,18 @@ def _build_imagen_prompt(context: dict[str, Any], name: str, story: str) -> str:
     type_desc = f"{p_type}/{s_type}" if s_type else p_type
 
     return (
-        f"A cute, unique creature character inspired by {pokemon_name}. "
+        f"Create a single original creature character inspired by {pokemon_name}. "
         f"Name: {name}. Type: {type_desc}. "
-        f"Description: {story[:200]} "
-        "Style: Pokemon-inspired creature design, digital art, vibrant colors, "
-        "white background, full body portrait, high quality, detailed."
+        f"Story mood: {story[:200]} "
+        "Render it as official Pokemon-style promotional key art. "
+        "Use cute mascot-like anatomy with a rounded silhouette, oversized glossy eyes, "
+        "clean confident 2D anime linework, soft polished cel shading with gentle gradient transitions, "
+        "subtle highlight accents, and a bright but balanced game-anime color palette. "
+        "Make it feel like an official monster encyclopedia or character card illustration: "
+        "full-body, front or three-quarter standing pose, centered composition, refined finish, "
+        "plain white or very light neutral background, single character only. "
+        "No text, no labels, no logo, no trainer, no scenery, no battle effects, no photorealism, "
+        "no painterly brush texture, no 3D render look, no western comic style."
     )
 
 
@@ -241,8 +254,10 @@ def _build_veo_prompt(context: dict[str, Any], name: str, story: str) -> str:
     return (
         f"A short introduction animation of a cute creature named {name}. "
         f"{story[:200]} "
-        "Style: animated, Pokemon-inspired, cute, dynamic movement, "
-        "colorful background, looping animation."
+        "Style: animated teaser matching official Pokemon-style promotional key art, "
+        "rounded mascot proportions, glossy expressive eyes, clean anime linework, "
+        "soft cel-shaded color with gentle highlights, polished character acting, "
+        "dynamic movement, colorful but simple background, looping animation."
     )
 
 
@@ -378,6 +393,13 @@ def generate_image(
         if not image_bytes:
             raise RuntimeError("Imagen 이미지 바이트가 비어 있습니다")
 
+        # Imagen API가 Base64 인코딩된 bytes를 반환하므로 디코딩
+        import base64
+        if isinstance(image_bytes, str):
+            image_bytes = base64.b64decode(image_bytes)
+        elif image_bytes[:4] != b'\x89PNG':
+            image_bytes = base64.b64decode(image_bytes)
+
         image_url = _save_image_bytes(image_bytes, ext="png")
         return image_url
 
@@ -495,6 +517,118 @@ def request_veo_video(
             error_message="Veo 생성 실패. 프론트엔드 CSS fallback 연출을 사용하세요.",
             meta=StepMeta(
                 source="fallback_no_video",
+                used_fallback=True,
+                retries=AI_MAX_RETRIES,
+                message=str(e),
+            ),
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  4. Imagen — 4방향 도트 스프라이트 시트 생성
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _build_sprite_prompt(context: dict[str, Any]) -> str:
+    name = context.get("name") or "Creature"
+    pokemon_name = context.get("matched_pokemon_name_en") or "Pokemon"
+    p_type = context.get("primary_type") or "normal"
+    s_type = context.get("secondary_type") or ""
+    type_desc = f"{p_type}/{s_type}" if s_type else p_type
+
+    return (
+        f"A pixel art sprite sheet for a cute creature named '{name}', "
+        f"inspired by {pokemon_name} ({type_desc} type). "
+        "The sprite sheet has exactly 4 rows and 3 columns (12 frames total). "
+        "Row 1: walking DOWN (3 frames: left foot, neutral, right foot). "
+        "Row 2: walking LEFT (3 frames: left foot, neutral, right foot). "
+        "Row 3: walking RIGHT (3 frames: left foot, neutral, right foot). "
+        "Row 4: walking UP / away from camera (3 frames: left foot, neutral, right foot). "
+        "Style: Pokemon Gold/Silver GBC era pixel art, 32x32 pixels per frame, "
+        "clean pixel grid, solid white background between frames, "
+        "bold black outlines, limited color palette (16 colors max), "
+        "no text, no labels, no extra decorations outside the grid."
+    )
+
+
+def _fallback_sprite_url(context: dict[str, Any]) -> str:
+    label = context.get("matched_pokemon_name_en") or "Sprite"
+    return f"https://placehold.co/96x128/4a9fa5/ffffff/png?text={quote(str(label))}"
+
+
+def generate_sprite(context: dict[str, Any]) -> SpriteResult:
+    """크리처 컨텍스트를 받아 4방향 도트 스프라이트 시트를 생성하고 URL을 반환한다."""
+
+    # ── Mock 모드 ──
+    if USE_MOCK_AI:
+        return SpriteResult(
+            sprite_url=_fallback_sprite_url(context),
+            meta=StepMeta(source="mock_sprite", used_fallback=False, retries=0),
+        )
+
+    # ── 실제 API ──
+    client = _get_genai_client()
+    if client is None:
+        return SpriteResult(
+            sprite_url=_fallback_sprite_url(context),
+            meta=StepMeta(
+                source="fallback_placeholder",
+                used_fallback=True,
+                retries=0,
+                message="Gemini API 키 미설정으로 스프라이트 생성 불가",
+            ),
+        )
+
+    def _call_real():
+        from google.genai import types
+        import base64
+
+        prompt = _build_sprite_prompt(context)
+        _log.info("Sprite 프롬프트: %s", prompt[:120])
+
+        response = client.models.generate_images(
+            model=IMAGEN_MODEL,
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/png",
+            ),
+        )
+
+        if not response.generated_images:
+            raise RuntimeError("Imagen 응답에 스프라이트 이미지가 없습니다")
+
+        generated_image = response.generated_images[0]
+        if hasattr(generated_image, "image") and hasattr(
+            generated_image.image, "image_bytes"
+        ):
+            image_bytes = generated_image.image.image_bytes
+        else:
+            raise RuntimeError("Imagen 응답에서 스프라이트 바이트를 추출할 수 없습니다")
+
+        if not image_bytes:
+            raise RuntimeError("Imagen 스프라이트 바이트가 비어 있습니다")
+
+        if isinstance(image_bytes, str):
+            image_bytes = base64.b64decode(image_bytes)
+        elif image_bytes[:4] != b"\x89PNG":
+            image_bytes = base64.b64decode(image_bytes)
+
+        sprite_url = _save_image_bytes(image_bytes, ext="png")
+        return sprite_url
+
+    try:
+        sprite_url, retries = _retry_call(_call_real, "Imagen 스프라이트 생성")
+        return SpriteResult(
+            sprite_url=sprite_url,
+            meta=StepMeta(source="imagen_api", used_fallback=False, retries=retries),
+        )
+    except Exception as e:
+        _log.error("Imagen 스프라이트 최종 실패, fallback 사용: %s", e)
+        return SpriteResult(
+            sprite_url=_fallback_sprite_url(context),
+            meta=StepMeta(
+                source="fallback_placeholder",
                 used_fallback=True,
                 retries=AI_MAX_RETRIES,
                 message=str(e),

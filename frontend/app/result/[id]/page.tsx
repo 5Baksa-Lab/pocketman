@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
-import { getCreature, patchCreature } from "@/lib/api";
+import { generateSprite, getCreature, patchCreature } from "@/lib/api";
 import { AuthStorage } from "@/lib/storage";
 import type { Creature } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -105,9 +105,12 @@ export default function ResultPage() {
     }
     try {
       setActionPending("plaza");
+      showToast("도트 스프라이트 생성 중... 잠시만 기다려주세요", "info");
+      await generateSprite(creatureId);
       await patchCreature(creatureId, { is_public: true });
       setCreature((prev) => prev ? { ...prev, is_public: true } : prev);
-      showToast("광장에 공개됐어요! 🎉", "success");
+      showToast("광장에 공개됐어요! 이동합니다...", "success");
+      setTimeout(() => router.push("/plaza"), 1000);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "공개 전환에 실패했습니다.", "error");
     } finally {
@@ -263,7 +266,11 @@ export default function ResultPage() {
             disabled={creature.is_public || actionPending === "plaza"}
             onClick={() => void handlePlaza()}
           >
-            {creature.is_public ? "🌍 광장 공개 중" : "🌍 광장에 올리기"}
+            {creature.is_public
+              ? "🌍 광장 공개 중"
+              : actionPending === "plaza"
+              ? "⏳ 스프라이트 생성 중..."
+              : "🌍 광장에 올리기"}
           </Button>
           <Button variant="secondary" disabled={actionPending === "save"} onClick={handleSave}>
             💾 저장하기

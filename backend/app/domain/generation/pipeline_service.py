@@ -11,6 +11,7 @@ from app.adapter.generation_adapter import (
     VideoResult,
     generate_image,
     generate_name_story,
+    generate_sprite,
     request_veo_video,
 )
 from app.core.errors import NotFoundError
@@ -24,6 +25,7 @@ from app.core.schemas import (
 from app.repository.creature_repository import (
     get_creature_generation_context,
     update_creature_generated_fields,
+    update_creature_sprite_url,
     update_creature_video_url,
 )
 from app.repository.veo_job_repository import create_veo_job, update_veo_job
@@ -169,3 +171,26 @@ def start_generation_pipeline(creature_id: str, req: GenerationStartRequest) -> 
         story=_to_step_meta(story_result.meta),
         video=_to_step_meta(video_result.meta),
     )
+
+
+def generate_sprite_for_creature(creature_id: str) -> dict:
+    """4방향 도트 스프라이트를 생성해 DB에 저장하고 업데이트된 크리처 row를 반환한다."""
+    context = get_creature_generation_context(creature_id)
+    if context is None:
+        raise NotFoundError("스프라이트를 생성할 크리처가 없습니다.", "CREATURE_NOT_FOUND")
+
+    sprite_result = generate_sprite(context)
+
+    updated = update_creature_sprite_url(creature_id, sprite_result.sprite_url)
+    if updated is None:
+        raise NotFoundError("스프라이트 URL 저장 실패 — 크리처를 찾을 수 없습니다.", "CREATURE_NOT_FOUND")
+
+    return {
+        **_normalize_creature_row(updated),
+        "sprite_meta": {
+            "source": sprite_result.meta.source,
+            "used_fallback": sprite_result.meta.used_fallback,
+            "retries": sprite_result.meta.retries,
+            "message": sprite_result.meta.message,
+        },
+    }

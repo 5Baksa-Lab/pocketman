@@ -123,6 +123,10 @@ export async function generateCreature(creatureId: string): Promise<GenerationRe
   });
 }
 
+export async function generateSprite(creatureId: string): Promise<Creature> {
+  return request<Creature>(`/creatures/${creatureId}/sprite`, { method: "POST" }, true);
+}
+
 export async function getVeoJob(jobId: string): Promise<VeoJob> {
   return request<VeoJob>(`/veo-jobs/${jobId}`);
 }

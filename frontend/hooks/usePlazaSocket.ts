@@ -80,7 +80,7 @@ export function usePlazaSocket({
         setMySocketId(sock.id ?? null);
         sock.emit("join", {
           nickname: playerCreature.name,
-          image_url: playerCreature.image_url,
+          image_url: playerCreature.sprite_url ?? playerCreature.image_url,
           x: 512,
           y: 180,
         });

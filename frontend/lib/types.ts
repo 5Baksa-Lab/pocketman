@@ -41,6 +41,7 @@ export interface Creature {
   story: string | null;
   image_url: string | null;
   video_url: string | null;
+  sprite_url: string | null;
   is_public: boolean;
   created_at: string;
   matched_pokemon_name_kr?: string | null;
@@ -178,6 +179,7 @@ export interface MyCreatureItem {
   name: string;
   is_public: boolean;
   image_url: string | null;
+  sprite_url?: string | null;
   created_at: string;
   matched_pokemon_name_kr?: string | null;
 }
