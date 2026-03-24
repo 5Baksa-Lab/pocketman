@@ -1,36 +1,62 @@
-"""Generation adapters for Imagen / Gemini Flash / Veo with mock-real switch.
+"""Generation adapters — google-genai SDK 통합 (Gemini Flash / Imagen 3 / Veo).
 
-실제 API 연동 지점은 환경변수 기반 endpoint 및 key를 사용한다.
-- USE_MOCK_AI=true: deterministic mock 결과 반환
-- USE_MOCK_AI=false: 실 API 시도 + 재시도 + fallback
+USE_MOCK_AI=true  → deterministic mock 결과 반환
+USE_MOCK_AI=false → 실제 Google AI API 호출 + 재시도 + fallback
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+import logging
+import os
 import random
 import time
+import uuid
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
-
-import httpx
 
 from app.core.config import (
     AI_MAX_RETRIES,
     AI_REQUEST_TIMEOUT_SEC,
     AI_RETRY_BASE_DELAY_SEC,
+    API_BASE_URL,
     GEMINI_API_KEY,
     GEMINI_FLASH_MODEL,
-    IMAGEN_API_URL,
+    GENERATED_FILES_DIR,
+    IMAGEN_MODEL,
     USE_MOCK_AI,
-    VEO_API_URL,
+    VEO_MODEL,
 )
 
-try:
-    import google.generativeai as genai
-except ModuleNotFoundError:  # pragma: no cover
-    genai = None  # type: ignore
+_log = logging.getLogger(__name__)
+
+# ── google-genai SDK lazy init ──────────────────────────────────────
+_genai_client = None
+
+
+def _get_genai_client():
+    """google-genai Client 싱글턴. API 키 미설정 시 None 반환."""
+    global _genai_client
+    if _genai_client is not None:
+        return _genai_client
+
+    if not GEMINI_API_KEY:
+        _log.warning("GEMINI_API_KEY 미설정 — AI 기능이 fallback 모드로 동작합니다.")
+        return None
+
+    try:
+        from google import genai
+
+        _genai_client = genai.Client(api_key=GEMINI_API_KEY)
+        _log.info("google-genai Client 초기화 완료")
+        return _genai_client
+    except Exception as e:
+        _log.error("google-genai Client 초기화 실패: %s", e)
+        return None
+
+
+# ── Data classes ────────────────────────────────────────────────────
 
 
 @dataclass
@@ -62,6 +88,9 @@ class VideoResult:
     meta: StepMeta
 
 
+# ── Retry helper ────────────────────────────────────────────────────
+
+
 def _retry_call(fn, op_name: str):
     attempts = max(1, AI_MAX_RETRIES + 1)
     last_error: Exception | None = None
@@ -70,15 +99,19 @@ def _retry_call(fn, op_name: str):
         try:
             value = fn()
             return value, idx
-        except Exception as e:  # pragma: no cover - external dependency path
+        except Exception as e:
             last_error = e
+            _log.warning("%s 시도 %d 실패: %s", op_name, idx + 1, e)
             if idx < attempts - 1:
-                delay = AI_RETRY_BASE_DELAY_SEC * (2 ** idx)
+                delay = AI_RETRY_BASE_DELAY_SEC * (2**idx)
                 time.sleep(delay)
 
     if last_error is None:
         raise RuntimeError(f"{op_name} 실패 (원인 미상)")
     raise RuntimeError(f"{op_name} 실패: {last_error}")
+
+
+# ── JSON parser ─────────────────────────────────────────────────────
 
 
 def _parse_json_object(text: str) -> dict[str, Any] | None:
@@ -109,6 +142,9 @@ def _parse_json_object(text: str) -> dict[str, Any] | None:
     return None
 
 
+# ── Fallback helpers ────────────────────────────────────────────────
+
+
 def _fallback_name(context: dict[str, Any]) -> str:
     pokemon_name = context.get("matched_pokemon_name_kr") or "포켓몬"
     return f"{pokemon_name} 타입 크리처"
@@ -131,6 +167,30 @@ def _fallback_image_url(context: dict[str, Any]) -> str:
 def _mock_video_url(context: dict[str, Any]) -> str:
     creature_id = context.get("id") or "mock"
     return f"https://cdn.pocketman.mock/videos/{creature_id}.mp4"
+
+
+# ── 이미지 파일 저장 ───────────────────────────────────────────────
+
+
+def _ensure_generated_dir() -> str:
+    os.makedirs(GENERATED_FILES_DIR, exist_ok=True)
+    return GENERATED_FILES_DIR
+
+
+def _save_image_bytes(image_bytes: bytes, ext: str = "png") -> str:
+    """이미지 바이트를 로컬 파일로 저장하고 접근 가능한 URL을 반환한다."""
+    dir_path = _ensure_generated_dir()
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    filepath = os.path.join(dir_path, filename)
+
+    with open(filepath, "wb") as f:
+        f.write(image_bytes)
+
+    _log.info("생성 이미지 저장: %s (%d bytes)", filepath, len(image_bytes))
+    return f"{API_BASE_URL.rstrip('/')}/static/generated/{filename}"
+
+
+# ── Prompts ─────────────────────────────────────────────────────────
 
 
 def _build_story_prompt(context: dict[str, Any]) -> str:
@@ -162,7 +222,37 @@ def _build_story_prompt(context: dict[str, Any]) -> str:
 """.strip()
 
 
+def _build_imagen_prompt(context: dict[str, Any], name: str, story: str) -> str:
+    pokemon_name = context.get("matched_pokemon_name_en") or "Pokemon"
+    p_type = context.get("primary_type") or "normal"
+    s_type = context.get("secondary_type") or ""
+    type_desc = f"{p_type}/{s_type}" if s_type else p_type
+
+    return (
+        f"A cute, unique creature character inspired by {pokemon_name}. "
+        f"Name: {name}. Type: {type_desc}. "
+        f"Description: {story[:200]} "
+        "Style: Pokemon-inspired creature design, digital art, vibrant colors, "
+        "white background, full body portrait, high quality, detailed."
+    )
+
+
+def _build_veo_prompt(context: dict[str, Any], name: str, story: str) -> str:
+    return (
+        f"A short introduction animation of a cute creature named {name}. "
+        f"{story[:200]} "
+        "Style: animated, Pokemon-inspired, cute, dynamic movement, "
+        "colorful background, looping animation."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  1. Gemini Flash — 이름 / 스토리 생성
+# ═══════════════════════════════════════════════════════════════════
+
+
 def generate_name_story(context: dict[str, Any]) -> StoryNameResult:
+    # ── Mock 모드 ──
     if USE_MOCK_AI:
         seed = int(str(context.get("matched_pokemon_id", 0))) * 97
         rng = random.Random(seed)
@@ -179,7 +269,9 @@ def generate_name_story(context: dict[str, Any]) -> StoryNameResult:
             meta=StepMeta(source="mock_gemini_flash", used_fallback=False, retries=0),
         )
 
-    if not GEMINI_API_KEY or genai is None:
+    # ── 실제 API ──
+    client = _get_genai_client()
+    if client is None:
         return StoryNameResult(
             name=_fallback_name(context),
             story=_fallback_story(context),
@@ -192,10 +284,11 @@ def generate_name_story(context: dict[str, Any]) -> StoryNameResult:
         )
 
     def _call_real():
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel(GEMINI_FLASH_MODEL)
-        resp = model.generate_content(_build_story_prompt(context))
-        parsed = _parse_json_object(getattr(resp, "text", ""))
+        resp = client.models.generate_content(
+            model=GEMINI_FLASH_MODEL,
+            contents=_build_story_prompt(context),
+        )
+        parsed = _parse_json_object(resp.text or "")
         if parsed is None:
             raise RuntimeError("Gemini 응답 JSON 파싱 실패")
 
@@ -213,6 +306,7 @@ def generate_name_story(context: dict[str, Any]) -> StoryNameResult:
             meta=StepMeta(source="gemini_flash", used_fallback=False, retries=retries),
         )
     except Exception as e:
+        _log.error("Gemini Flash 최종 실패, fallback 사용: %s", e)
         return StoryNameResult(
             name=_fallback_name(context),
             story=_fallback_story(context),
@@ -225,32 +319,66 @@ def generate_name_story(context: dict[str, Any]) -> StoryNameResult:
         )
 
 
-def generate_image(context: dict[str, Any], generated_name: str, generated_story: str) -> ImageResult:
+# ═══════════════════════════════════════════════════════════════════
+#  2. Imagen 3 — 크리처 이미지 생성
+# ═══════════════════════════════════════════════════════════════════
+
+
+def generate_image(
+    context: dict[str, Any], generated_name: str, generated_story: str
+) -> ImageResult:
+    # ── Mock 모드 ──
     if USE_MOCK_AI:
         return ImageResult(
             image_url=_fallback_image_url(context),
             meta=StepMeta(source="mock_imagen", used_fallback=False, retries=0),
         )
 
+    # ── 실제 API ──
+    client = _get_genai_client()
+    if client is None:
+        return ImageResult(
+            image_url=_fallback_image_url(context),
+            meta=StepMeta(
+                source="fallback_placeholder",
+                used_fallback=True,
+                retries=0,
+                message="Gemini API 키 미설정으로 이미지 생성 불가",
+            ),
+        )
+
     def _call_real():
-        if not IMAGEN_API_URL:
-            raise RuntimeError("IMAGEN_API_URL 미설정")
+        from google.genai import types
 
-        payload = {
-            "name": generated_name,
-            "story": generated_story,
-            "matched_pokemon": context.get("matched_pokemon_name_en"),
-            "primary_type": context.get("primary_type"),
-            "secondary_type": context.get("secondary_type"),
-        }
-        with httpx.Client(timeout=AI_REQUEST_TIMEOUT_SEC) as client:
-            resp = client.post(IMAGEN_API_URL, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        prompt = _build_imagen_prompt(context, generated_name, generated_story)
+        _log.info("Imagen 프롬프트: %s", prompt[:100])
 
-        image_url = str(data.get("image_url", "")).strip()
-        if not image_url:
-            raise RuntimeError("Imagen 응답에 image_url 누락")
+        response = client.models.generate_images(
+            model=IMAGEN_MODEL,
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/png",
+            ),
+        )
+
+        if not response.generated_images:
+            raise RuntimeError("Imagen 응답에 생성된 이미지가 없습니다")
+
+        generated_image = response.generated_images[0]
+
+        # image.image_bytes 에서 바이트 추출
+        if hasattr(generated_image, "image") and hasattr(
+            generated_image.image, "image_bytes"
+        ):
+            image_bytes = generated_image.image.image_bytes
+        else:
+            raise RuntimeError("Imagen 응답에서 이미지 바이트를 추출할 수 없습니다")
+
+        if not image_bytes:
+            raise RuntimeError("Imagen 이미지 바이트가 비어 있습니다")
+
+        image_url = _save_image_bytes(image_bytes, ext="png")
         return image_url
 
     try:
@@ -260,6 +388,7 @@ def generate_image(context: dict[str, Any], generated_name: str, generated_story
             meta=StepMeta(source="imagen_api", used_fallback=False, retries=retries),
         )
     except Exception as e:
+        _log.error("Imagen 최종 실패, fallback 사용: %s", e)
         return ImageResult(
             image_url=_fallback_image_url(context),
             meta=StepMeta(
@@ -271,7 +400,15 @@ def generate_image(context: dict[str, Any], generated_name: str, generated_story
         )
 
 
-def request_veo_video(context: dict[str, Any], generated_name: str, generated_story: str) -> VideoResult:
+# ═══════════════════════════════════════════════════════════════════
+#  3. Veo — 크리처 소개 영상 생성 (비동기)
+# ═══════════════════════════════════════════════════════════════════
+
+
+def request_veo_video(
+    context: dict[str, Any], generated_name: str, generated_story: str
+) -> VideoResult:
+    # ── Mock 모드 ──
     if USE_MOCK_AI:
         return VideoResult(
             status="succeeded",
@@ -280,31 +417,70 @@ def request_veo_video(context: dict[str, Any], generated_name: str, generated_st
             meta=StepMeta(source="mock_veo", used_fallback=False, retries=0),
         )
 
+    # ── 실제 API ──
+    client = _get_genai_client()
+    if client is None:
+        return VideoResult(
+            status="failed",
+            video_url=None,
+            error_message="Gemini API 키 미설정으로 영상 생성 불가",
+            meta=StepMeta(
+                source="fallback_no_video",
+                used_fallback=True,
+                retries=0,
+                message="API 키 미설정",
+            ),
+        )
+
     def _call_real():
-        if not VEO_API_URL:
-            raise RuntimeError("VEO_API_URL 미설정")
+        prompt = _build_veo_prompt(context, generated_name, generated_story)
+        _log.info("Veo 프롬프트: %s", prompt[:100])
 
-        payload = {
-            "creature_id": context.get("id"),
-            "name": generated_name,
-            "story": generated_story,
-            "image_url": context.get("image_url"),
-            "matched_pokemon": context.get("matched_pokemon_name_en"),
-        }
-        with httpx.Client(timeout=AI_REQUEST_TIMEOUT_SEC) as client:
-            resp = client.post(VEO_API_URL, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        # Veo API는 비동기 operation을 반환 — 완료까지 폴링
+        operation = client.models.generate_videos(
+            model=VEO_MODEL,
+            prompt=prompt,
+        )
 
-        status = str(data.get("status", "queued")).strip().lower() or "queued"
-        video_url = data.get("video_url")
-        error_message = data.get("error_message")
-        if status not in {"queued", "running", "succeeded", "failed", "canceled"}:
-            status = "queued"
-        return status, video_url, error_message
+        # 타임아웃 내에서 완료 대기
+        import time as _time
+
+        deadline = _time.time() + AI_REQUEST_TIMEOUT_SEC
+        while not operation.done:
+            if _time.time() > deadline:
+                return "running", None, "Veo 생성 진행 중 (타임아웃 초과, 폴링 필요)"
+            _time.sleep(5)
+            operation = client.operations.get(operation)
+
+        # 완료된 경우 결과 추출
+        result = operation.result
+        if not result or not result.generated_videos:
+            return "failed", None, "Veo 생성 완료되었으나 영상이 없습니다"
+
+        video = result.generated_videos[0]
+
+        # 영상 바이트 저장
+        if hasattr(video, "video") and hasattr(video.video, "video_bytes"):
+            video_bytes = video.video.video_bytes
+            if video_bytes:
+                dir_path = _ensure_generated_dir()
+                filename = f"{uuid.uuid4().hex}.mp4"
+                filepath = os.path.join(dir_path, filename)
+                with open(filepath, "wb") as f:
+                    f.write(video_bytes)
+                video_url = f"{API_BASE_URL.rstrip('/')}/static/generated/{filename}"
+                return "succeeded", video_url, None
+
+        # URI 방식으로 제공되는 경우
+        if hasattr(video, "uri") and video.uri:
+            return "succeeded", video.uri, None
+
+        return "failed", None, "Veo 영상 데이터 추출 실패"
 
     try:
-        (status, video_url, error_message), retries = _retry_call(_call_real, "Veo 영상 생성 요청")
+        (status, video_url, error_message), retries = _retry_call(
+            _call_real, "Veo 영상 생성"
+        )
         return VideoResult(
             status=status,
             video_url=video_url,
@@ -312,6 +488,7 @@ def request_veo_video(context: dict[str, Any], generated_name: str, generated_st
             meta=StepMeta(source="veo_api", used_fallback=False, retries=retries),
         )
     except Exception as e:
+        _log.error("Veo 최종 실패: %s", e)
         return VideoResult(
             status="failed",
             video_url=None,
