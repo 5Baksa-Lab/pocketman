@@ -46,7 +46,7 @@ def _ok(request_id: str, start: float, data: object) -> dict:
         "success": True,
         "request_id": request_id,
         "duration_ms": int((time.time() - start) * 1000),
-        "data": data.model_dump() if hasattr(data, "model_dump") else data,
+        "data": data.model_dump(mode="json") if hasattr(data, "model_dump") else data,
     }
 
 
@@ -243,7 +243,7 @@ def create_comment(
             "success": True,
             "request_id": rid,
             "duration_ms": int((time.time() - t) * 1000),
-            "data": result.model_dump(),
+            "data": result.model_dump(mode="json"),
         })
     except Exception as e:
         return _err(e, rid, t, "댓글 작성")
