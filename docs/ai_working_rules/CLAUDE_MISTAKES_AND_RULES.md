@@ -176,7 +176,38 @@ cd backend && ../.venv/bin/python -c "from app.main import app; print('BACKEND O
 
 ---
 
-## 8. 다음 Stage 확인 방법
+## 8. 로컬 실행 명령어 (반드시 이대로 실행)
+
+### 백엔드
+
+```bash
+# 포트 충돌 시 먼저 정리
+lsof -ti:8000 | xargs kill -9
+
+# 실행 (socket.io 포함 — combined_app 필수)
+cd ~/Desktop/pocketman/backend
+USE_MOCK_AI=false ../.venv/bin/uvicorn app.main:combined_app --port 8000 --reload
+```
+
+> ⚠️ `app.main:app` 으로 실행하면 socket.io(광장)가 동작하지 않는다. 반드시 `app.main:combined_app` 사용.
+
+### 프론트엔드
+
+```bash
+cd ~/Desktop/pocketman/frontend
+npm run dev
+```
+
+### 접속
+
+| 서비스 | URL |
+|---|---|
+| 앱 | http://localhost:3000 |
+| API 문서 | http://localhost:8000/docs |
+
+---
+
+## 9. 다음 Stage 확인 방법
 
 새 컨텍스트에서 "다음에 무엇을 해야 하나?"를 판단하는 순서:
 

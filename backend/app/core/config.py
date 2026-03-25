@@ -4,6 +4,7 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 
 _log = logging.getLogger(__name__)
@@ -20,8 +21,34 @@ def _parse_csv_env(name: str, default: str) -> list[str]:
     return values or [default]
 
 
+def _expand_loopback_origins(origins: list[str]) -> list[str]:
+    expanded: list[str] = []
+
+    for origin in origins:
+        parsed = urlsplit(origin)
+        hostname = parsed.hostname
+        variants = [origin]
+
+        if hostname in {"localhost", "127.0.0.1"}:
+            for alt_host in ("localhost", "127.0.0.1"):
+                netloc = alt_host
+                if parsed.port:
+                    netloc += f":{parsed.port}"
+                variants.append(
+                    urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+                )
+
+        for candidate in variants:
+            if candidate not in expanded:
+                expanded.append(candidate)
+
+    return expanded
+
+
 DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
-ALLOWED_ORIGINS: list[str] = _parse_csv_env("ALLOWED_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS: list[str] = _expand_loopback_origins(
+    _parse_csv_env("ALLOWED_ORIGINS", "http://localhost:3000")
+)
 USE_MOCK_AI: bool = os.environ.get("USE_MOCK_AI", "false").lower() == "true"
 GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_FLASH_MODEL: str = os.environ.get("GEMINI_FLASH_MODEL", "gemini-2.0-flash")

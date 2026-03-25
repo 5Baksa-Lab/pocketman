@@ -408,6 +408,7 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
           antialias: false,
         },
         input: { keyboard: true },
+        loader: { crossOrigin: "anonymous" },
       });
 
       if (!mounted) { game.destroy(true); return; }
