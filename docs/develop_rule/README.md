@@ -6,11 +6,12 @@
 
 ## 1. 적용 우선순위
 
-1. `01_global_rules.md` (전역 규칙)
-2. `02_ai_coding_rules.md` (Claude/Codex 공통 실행 규칙)
-3. `03_stage_completion_and_devlog.md` (단계 종료 규칙)
-4. `checklists/STAGE_DONE_CHECKLIST.md` (종료 체크)
-5. `templates/DEVLOG_TEMPLATE.md` (개발일지 템플릿)
+1. `00_pre_work_protocol.md` (작업 착수 전 필수 프로토콜 — 최우선)
+2. `01_global_rules.md` (전역 규칙)
+3. `02_ai_coding_rules.md` (Claude/Codex 공통 실행 규칙)
+4. `03_stage_completion_and_devlog.md` (단계 종료 규칙)
+5. `checklists/STAGE_DONE_CHECKLIST.md` (종료 체크)
+6. `templates/DEVLOG_TEMPLATE.md` (개발일지 템플릿)
 
 ---
 

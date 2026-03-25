@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f6f2e8;
+  --color-panel: #fff8ec;
+  --color-panel-soft: #f0e7d8;
+  --color-ink: #112033;
+  --color-point: #f15946;
+  --color-point-alt: #009087;
+  --color-ok: #2e7d32;
+  --color-warn: #e38b00;
+  --color-danger: #c13515;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--color-ink);
+  font-family: "SUIT", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(241, 89, 70, 0.17), transparent 38%),
+    radial-gradient(circle at 88% 18%, rgba(0, 144, 135, 0.16), transparent 30%),
+    linear-gradient(180deg, #fff9f0 0%, #f6f2e8 55%, #efe5d6 100%);
+}
+
+.brand {
+  font-family: "Futura", "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.nav-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(17, 32, 51, 0.18);
+  background: rgba(255, 248, 236, 0.92);
+  padding: 0.45rem 0.95rem;
+  font-size: 0.88rem;
+  text-decoration: none;
+  color: var(--color-ink);
+  transition: all 180ms ease;
+}
+
+.nav-pill:hover {
+  border-color: rgba(241, 89, 70, 0.6);
+  transform: translateY(-1px);
+}
+
+.aurora {
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(45px);
+  opacity: 0.4;
+  animation: drift 14s ease-in-out infinite;
+}
+
+.aurora-a {
+  width: 340px;
+  height: 340px;
+  top: -120px;
+  left: -90px;
+  background: #f15946;
+}
+
+.aurora-b {
+  width: 300px;
+  height: 300px;
+  right: -70px;
+  top: 140px;
+  background: #009087;
+  animation-delay: -4s;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -8px) scale(1.07);
+  }
+}
+
+.section-card {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(17, 32, 51, 0.12);
+  background: linear-gradient(155deg, rgba(255, 248, 236, 0.95), rgba(240, 231, 216, 0.95));
+  box-shadow: 0 14px 40px rgba(5, 14, 23, 0.16);
+}
+
+.pulse-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-point);
+  animation: pulse 1.2s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.85); opacity: 0.8; }
+  70% { transform: scale(1.35); opacity: 0.3; }
+  100% { transform: scale(0.85); opacity: 0.8; }
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

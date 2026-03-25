@@ -1,4 +1,6 @@
 .env
+.env.local
+backend/.env
 .venv/
 .pytest_cache/
 __pycache__/
@@ -9,3 +11,9 @@ outputs/
 
 scripts/poc_images/*
 !scripts/poc_images/.gitkeep
+
+backend/static/generated/*
+!backend/static/generated/.gitkeep
+
+frontend/node_modules/
+frontend/.next/

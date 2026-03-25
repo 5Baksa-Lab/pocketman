@@ -1,7 +1,8 @@
 """
 Step 1. PokeAPI 배치 수집 스크립트
-대상: 1세대 포켓몬 #001 ~ #151
+대상: 1~3세대 포켓몬 #001 ~ #386
 저장: pokemon_master, pokemon_stats 테이블
+보완: 한국어 도감 설명 없으면 Fandom summary 수집 후 저장
 
 실행 방법:
     python scripts/01_fetch_pokeapi.py
@@ -13,7 +14,7 @@ import os
 import time
 import argparse
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 import httpx
@@ -34,11 +35,27 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 POKEAPI_BASE    = "https://pokeapi.co/api/v2"
+FANDOM_API_BASE = "https://pokemon.fandom.com/api.php"
 REQUEST_DELAY   = 0.15          # 초 (rate limit 방지)
 MAX_RETRY       = 3             # 실패 시 재시도 횟수
 RETRY_BACKOFF   = 2.0           # 재시도 간격 배수
-GEN1_START      = 1
-GEN1_END        = 151
+POKEMON_START   = 1
+POKEMON_END     = 386
+COMMIT_BATCH_SIZE = 50
+
+TYPE_KR = {
+    "normal": "노말", "fire": "불꽃", "water": "물", "grass": "풀",
+    "electric": "전기", "ice": "얼음", "fighting": "격투", "poison": "독",
+    "ground": "땅", "flying": "비행", "psychic": "에스퍼", "bug": "벌레",
+    "rock": "바위", "ghost": "고스트", "dragon": "드래곤", "dark": "악",
+    "steel": "강철", "fairy": "페어리",
+}
+
+COLOR_KR = {
+    "black": "검정", "blue": "파랑", "brown": "갈색", "gray": "회색",
+    "green": "초록", "pink": "분홍", "purple": "보라", "red": "빨강",
+    "white": "흰색", "yellow": "노랑",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -79,10 +96,14 @@ class PokemonStats:
 # ---------------------------------------------------------------------------
 # API 호출 (재시도 포함)
 # ---------------------------------------------------------------------------
-def fetch_with_retry(client: httpx.Client, url: str) -> Optional[dict]:
+def fetch_with_retry(
+    client: httpx.Client,
+    url: str,
+    params: Optional[dict] = None,
+) -> Optional[dict]:
     for attempt in range(1, MAX_RETRY + 1):
         try:
-            resp = client.get(url, timeout=10.0)
+            resp = client.get(url, params=params, timeout=10.0)
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPStatusError as e:
@@ -133,6 +154,66 @@ def extract_genus(genera: list, lang: str = "ko") -> Optional[str]:
     return None
 
 
+def normalize_text(raw: str) -> str:
+    cleaned = raw.replace("\n", " ").replace("\f", " ").replace("\r", " ").replace("\t", " ")
+    return " ".join(cleaned.split())
+
+
+def build_fandom_title_candidates(name_en: str) -> list[str]:
+    base = (name_en or "").strip()
+    if not base:
+        return []
+
+    candidates = [base]
+
+    # PokeAPI name에서 성별 심볼이 풀려 있는 케이스 보정
+    if base.endswith(" F"):
+        candidates.append(base[:-2] + "♀")
+    if base.endswith(" M"):
+        candidates.append(base[:-2] + "♂")
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for c in candidates:
+        if c not in seen:
+            seen.add(c)
+            unique.append(c)
+    return unique
+
+
+def extract_fandom_summary(payload: dict) -> Optional[str]:
+    pages = payload.get("query", {}).get("pages", [])
+    for page in pages:
+        summary = page.get("extract")
+        if summary:
+            return normalize_text(summary)
+    return None
+
+
+def fetch_fandom_flavor_text(
+    client: httpx.Client,
+    name_en: str,
+) -> Optional[str]:
+    for title in build_fandom_title_candidates(name_en):
+        params = {
+            "action": "query",
+            "prop": "extracts",
+            "exintro": "1",
+            "explaintext": "1",
+            "redirects": "1",
+            "titles": title,
+            "format": "json",
+            "formatversion": "2",
+        }
+        payload = fetch_with_retry(client, FANDOM_API_BASE, params=params)
+        if not payload:
+            continue
+        summary = extract_fandom_summary(payload)
+        if summary:
+            return summary
+    return None
+
+
 # ---------------------------------------------------------------------------
 # 포켓몬 1마리 수집
 # ---------------------------------------------------------------------------
@@ -162,14 +243,6 @@ def fetch_single_pokemon(
     primary_type   = types[0]["type"]["name"] if len(types) >= 1 else "normal"
     secondary_type = types[1]["type"]["name"] if len(types) >= 2 else None
 
-    # 타입 영문 → 한국어 매핑
-    TYPE_KR = {
-        "normal": "노말", "fire": "불꽃", "water": "물", "grass": "풀",
-        "electric": "전기", "ice": "얼음", "fighting": "격투", "poison": "독",
-        "ground": "땅", "flying": "비행", "psychic": "에스퍼", "bug": "벌레",
-        "rock": "바위", "ghost": "고스트", "dragon": "드래곤", "dark": "악",
-        "steel": "강철", "fairy": "페어리",
-    }
     primary_type_kr   = TYPE_KR.get(primary_type, primary_type)
     secondary_type_kr = TYPE_KR.get(secondary_type, secondary_type) if secondary_type else None
 
@@ -190,12 +263,6 @@ def fetch_single_pokemon(
     shape_name   = species_data.get("shape", {}).get("name") if species_data.get("shape") else None
     habitat_name = species_data.get("habitat", {}).get("name") if species_data.get("habitat") else None
 
-    COLOR_KR = {
-        "black": "검정", "blue": "파랑", "brown": "갈색", "gray": "회색",
-        "green": "초록", "pink": "분홍", "purple": "보라", "red": "빨강",
-        "white": "흰색", "yellow": "노랑",
-    }
-
     # --- 스프라이트 ---
     sprite_url = (
         poke_data.get("sprites", {}).get("front_default")
@@ -203,11 +270,17 @@ def fetch_single_pokemon(
     )
 
     # --- 도감 설명 ---
+    # 우선순위: PokeAPI 한국어 → Fandom 보완 → PokeAPI 영어
     flavor_text = extract_flavor_text(
         species_data.get("flavor_text_entries", []), lang="ko"
     )
     if not flavor_text:
-        # 한국어 없으면 영어로 대체
+        flavor_text = fetch_fandom_flavor_text(client, name_en)
+        if flavor_text:
+            log.info(f"  도감 보완(Fandom): {name_en}")
+
+    if not flavor_text:
+        # Fandom도 실패하면 영어 설명으로 대체
         flavor_text = extract_flavor_text(
             species_data.get("flavor_text_entries", []), lang="en"
         )
@@ -222,7 +295,8 @@ def fetch_single_pokemon(
         name_kr          = name_kr,
         name_en          = name_en,
         name_jp          = name_jp,
-        generation       = 1,
+        generation       = {"generation-i": 1, "generation-ii": 2, "generation-iii": 3}.get(
+                               species_data.get("generation", {}).get("name", "generation-i"), 1),
         pokedex_category = genus_kr,
         primary_type     = primary_type_kr,
         secondary_type   = secondary_type_kr,
@@ -321,6 +395,7 @@ def run(start: int, end: int, dry_run: bool = False):
         conn   = get_db_connection()
         cursor = conn.cursor()
         log.info("DB 연결 완료")
+    pending_commits = 0
 
     with httpx.Client(headers={"User-Agent": "pokeman-project/1.0"}) as client:
         for pokemon_id in range(start, end + 1):
@@ -341,24 +416,34 @@ def run(start: int, end: int, dry_run: bool = False):
                     f"{'/' + master.secondary_type if master.secondary_type else ''}"
                     f" | HP:{stats.hp} ATK:{stats.attack}"
                 )
+                success_count += 1
             else:
+                cursor.execute("SAVEPOINT sp_fetch_row")
                 try:
                     upsert_pokemon_master(cursor, master)
                     upsert_pokemon_stats(cursor, stats)
-                    conn.commit()
+                    cursor.execute("RELEASE SAVEPOINT sp_fetch_row")
+                    pending_commits += 1
+                    if pending_commits >= COMMIT_BATCH_SIZE:
+                        conn.commit()
+                        pending_commits = 0
                     log.info(
                         f"  저장 완료: #{master.pokemon_id:03d} {master.name_kr} "
                         f"| {master.primary_type}"
                     )
                     success_count += 1
                 except Exception as e:
-                    conn.rollback()
+                    cursor.execute("ROLLBACK TO SAVEPOINT sp_fetch_row")
+                    cursor.execute("RELEASE SAVEPOINT sp_fetch_row")
                     log.error(f"  DB 저장 오류 #{pokemon_id}: {e}")
                     fail_count += 1
                     fail_ids.append(pokemon_id)
 
             # Rate limit 방지 딜레이
             time.sleep(REQUEST_DELAY)
+
+    if not dry_run and conn and pending_commits > 0:
+        conn.commit()
 
     if not dry_run and cursor:
         cursor.close()
@@ -378,13 +463,13 @@ def run(start: int, end: int, dry_run: bool = False):
 # CLI 진입점
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="PokeAPI Gen1 배치 수집 스크립트")
-    parser.add_argument("--start",   type=int, default=GEN1_START, help=f"시작 번호 (기본: {GEN1_START})")
-    parser.add_argument("--end",     type=int, default=GEN1_END,   help=f"끝 번호   (기본: {GEN1_END})")
-    parser.add_argument("--dry-run", action="store_true",          help="DB 저장 없이 수집 결과만 출력")
+    parser = argparse.ArgumentParser(description="PokeAPI Gen1~3 배치 수집 스크립트")
+    parser.add_argument("--start",   type=int, default=POKEMON_START, help=f"시작 번호 (기본: {POKEMON_START})")
+    parser.add_argument("--end",     type=int, default=POKEMON_END,   help=f"끝 번호   (기본: {POKEMON_END})")
+    parser.add_argument("--dry-run", action="store_true",              help="DB 저장 없이 수집 결과만 출력")
     args = parser.parse_args()
 
-    if args.start < 1 or args.end > 151 or args.start > args.end:
-        parser.error("범위는 1~151 사이여야 하며 start <= end 이어야 합니다.")
+    if args.start < 1 or args.end > 386 or args.start > args.end:
+        parser.error("범위는 1~386 사이여야 하며 start <= end 이어야 합니다.")
 
     run(start=args.start, end=args.end, dry_run=args.dry_run)

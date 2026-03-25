@@ -1,0 +1,10 @@
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
+export const MIN_IMAGE_DIMENSION = 100
+export const VEO_POLL_INTERVAL_MS = 3000
+export const MAX_VEO_POLL_COUNT = 25
+export const PLAZA_PAGE_SIZE = 12
+export const SESSION_KEY_MATCH_RESULT = "pm_match_result"
+export const SESSION_KEY_ACCESS_TOKEN = "pm_access_token"
+export const SESSION_KEY_AUTH_USER = "pm_user"
+export const LOCAL_KEY_BGM = "pm_bgm_on"

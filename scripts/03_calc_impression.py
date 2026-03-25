@@ -1,20 +1,38 @@
 """
-Step 3. 인상 점수 자동 계산 스크립트
-입력: pokemon_face_shape + pokemon_eye_features + pokemon_style_features + pokemon_emotion_features
-출력: pokemon_impression_scores (9개 차원)
+Step 3. 인상/성격 점수 계산 스크립트
+기획안 v5 §6-4 "Category 2: 인상/성격 점수 (Impression Scores)" 기준
+
+입력:
+  - pokemon_master.pokedex_text_kr + 타입 정보 (Gemini Flash 분석)
+  - pokemon_visual (fallback 규칙식)
+출력: pokemon_impression (9차원 스코어)
+
+동작 우선순위:
+  1) Gemini Flash로 9개 인상 점수 추출
+  2) 실패 시 visual 기반 규칙식으로 fallback
 
 실행 방법:
     python scripts/03_calc_impression.py
-    python scripts/03_calc_impression.py --start 1 --end 30
+    python scripts/03_calc_impression.py --start 1 --end 386
 """
 
 import os
+import json
+import time
+import random
 import logging
 import argparse
+from typing import Optional
 
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+from shared.feature_mapping import calc_impression_from_visual, impression_to_db_scores
+
+try:
+    import google.generativeai as genai
+except ModuleNotFoundError:  # pragma: no cover - optional during local setup
+    genai = None  # type: ignore
 
 load_dotenv()
 
@@ -25,100 +43,145 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+USE_MOCK_AI = os.environ.get("USE_MOCK_AI", "false").lower() == "true"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = "gemini-2.0-flash"
+REQUEST_DELAY = 0.8
+COMMIT_BATCH_SIZE = 50
+
+IMPRESSION_FIELDS = [
+    "cute", "calm", "smart", "fierce", "gentle",
+    "lively", "innocent", "confident", "unique",
+]
+
 
 # ---------------------------------------------------------------------------
-# 인상 점수 계산 공식
+# Gemini Flash helpers
 # ---------------------------------------------------------------------------
-def clamp(v: float, lo=0.0, hi=1.0) -> float:
-    return round(max(lo, min(hi, float(v))), 2)
+def clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    return round(max(lo, min(hi, float(v))), 3)
 
 
-def calc_impression(row: dict) -> dict:
-    """
-    face_shape + eye + style + emotion 값을 받아 9개 인상 점수를 반환
+def parse_json_object(raw: str) -> Optional[dict]:
+    text = (raw or "").strip()
+    if not text:
+        return None
 
-    row 예상 키:
-        face_aspect_ratio, jawline_angle,
-        eye_size_ratio, eye_distance_ratio, eye_slant_angle,
-        has_glasses, has_facial_hair, has_bangs,
-        smile_score, emotion_class
-    """
-    f_asp  = float(row.get("face_aspect_ratio",  0.5))
-    jaw    = float(row.get("jawline_angle",       0.5))
-    e_sz   = float(row.get("eye_size_ratio",      0.5))
-    e_dist = float(row.get("eye_distance_ratio",  0.5))
-    e_sl   = float(row.get("eye_slant_angle",     0.5))
-    glasses = 1.0 if row.get("has_glasses")      else 0.0
-    f_hair  = 1.0 if row.get("has_facial_hair")  else 0.0
-    bangs   = 1.0 if row.get("has_bangs")        else 0.0
-    smile  = float(row.get("smile_score",         0.5))
-    emo    = row.get("emotion_class", "무표정")
+    if text.startswith("```"):
+        lines = text.splitlines()
+        text = "\n".join(line for line in lines if not line.strip().startswith("```"))
+        text = text.strip()
 
-    # emotion_class 보너스 매핑
-    emo_bonus = {
-        "기쁨":  {"cute": 0.15, "lively": 0.15, "gentle": 0.10},
-        "온화":  {"calm": 0.15, "gentle": 0.15, "innocent": 0.10},
-        "신비":  {"unique": 0.20, "calm": 0.10},
-        "분노":  {"fierce": 0.20, "confident": 0.10},
-        "슬픔":  {"calm": 0.10, "innocent": 0.10},
-        "공포":  {"unique": 0.15, "fierce": 0.10},
-        "무표정": {},
-    }
-    bonus = emo_bonus.get(emo, {})
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        pass
 
-    # --- 9개 인상 점수 계산 ---
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        candidate = text[start : end + 1]
+        try:
+            parsed = json.loads(candidate)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            return None
+    return None
 
-    # cute: 큰 눈 + 둥근 얼굴 + 올라간 입꼬리
-    cute = (e_sz * 0.40) + (f_asp * 0.30) + (smile * 0.30)
-    cute = clamp(cute + bonus.get("cute", 0))
 
-    # calm: 처진(중립) 눈꼬리 + 둥근 턱선 + 중립 smile
-    calm_eye  = 1.0 - abs(e_sl - 0.5) * 2        # 0.5에 가까울수록 높음
-    calm_smile = 1.0 - abs(smile - 0.5) * 2
-    calm = (calm_eye * 0.40) + (jaw * 0.30) + (calm_smile * 0.30)
-    calm = clamp(calm + bonus.get("calm", 0))
+def normalize_impression_scores(raw: dict) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for key in IMPRESSION_FIELDS:
+        out[key] = clamp(raw.get(key, 0.5))
+    return out
 
-    # smart: 안경 + 좁은 미간 + 좁은 눈
-    smart = (glasses * 0.50) + ((1.0 - e_dist) * 0.30) + ((1.0 - e_sz) * 0.20)
-    smart = clamp(smart + bonus.get("smart", 0))
 
-    # fierce: 올라간 눈꼬리 + 각진 턱선 + 찌푸린 표정
-    fierce = (e_sl * 0.50) + ((1.0 - jaw) * 0.30) + ((1.0 - smile) * 0.20)
-    fierce = clamp(fierce + bonus.get("fierce", 0))
+def build_prompt(row: dict) -> str:
+    name_kr = row.get("name_kr", "")
+    name_en = row.get("name_en", "")
+    primary_type = row.get("primary_type", "")
+    secondary_type = row.get("secondary_type") or "없음"
+    pokedex_text = row.get("pokedex_text_kr") or "도감 설명 없음"
 
-    # gentle: 미소 + 둥근 턱선 + 처진 눈꼬리
-    gentle = (smile * 0.40) + (jaw * 0.30) + ((1.0 - e_sl) * 0.30)
-    gentle = clamp(gentle + bonus.get("gentle", 0))
+    return f"""
+당신은 포켓몬 도감 텍스트와 타입을 기반으로 인상/성격 점수를 수치화하는 분석가입니다.
+설명 없이 JSON 객체만 출력하세요.
 
-    # lively: 미소 + 큰 눈 + 강조된 이목구비(f_hair/bangs)
-    feature_emphasis = max(f_hair * 0.3, bangs * 0.3)
-    lively = (smile * 0.40) + (e_sz * 0.30) + (feature_emphasis * 0.30)
-    lively = clamp(lively + bonus.get("lively", 0))
+포켓몬:
+- name_kr: {name_kr}
+- name_en: {name_en}
+- primary_type: {primary_type}
+- secondary_type: {secondary_type}
+- pokedex_text: {pokedex_text}
 
-    # innocent: 큰 눈 + 둥근 턱선 + 낮은 fierce
-    innocent = (e_sz * 0.40) + (jaw * 0.30) + ((1.0 - fierce) * 0.30)
-    innocent = clamp(innocent + bonus.get("innocent", 0))
+다음 9개 키를 0.0~1.0 점수로 반환:
+- cute
+- calm
+- smart
+- fierce
+- gentle
+- lively
+- innocent
+- confident
+- unique
 
-    # confident: 올라간 눈꼬리 + 각진 턱선 + 수염(위협감)
-    confident = (e_sl * 0.35) + ((1.0 - jaw) * 0.35) + (f_hair * 0.30)
-    confident = clamp(confident + bonus.get("confident", 0))
+출력 형식:
+{{
+  "cute": 0.50,
+  "calm": 0.50,
+  "smart": 0.50,
+  "fierce": 0.50,
+  "gentle": 0.50,
+  "lively": 0.50,
+  "innocent": 0.50,
+  "confident": 0.50,
+  "unique": 0.50
+}}
+""".strip()
 
-    # unique: 안경 or 극단적 눈 크기 + 앞머리
-    eye_extremity = abs(e_sz - 0.5) * 2   # 0 또는 1에 가까울수록 높음
-    unique = (glasses * 0.30) + (eye_extremity * 0.40) + (bangs * 0.30)
-    unique = clamp(unique + bonus.get("unique", 0))
 
-    return {
-        "cute_score":      cute,
-        "calm_score":      calm,
-        "smart_score":     smart,
-        "fierce_score":    fierce,
-        "gentle_score":    gentle,
-        "lively_score":    lively,
-        "innocent_score":  innocent,
-        "confident_score": confident,
-        "unique_score":    unique,
-    }
+def generate_mock_impression(pokemon_id: int) -> dict[str, float]:
+    rng = random.Random(pokemon_id * 173)
+    return {key: clamp(rng.uniform(0.15, 0.9)) for key in IMPRESSION_FIELDS}
+
+
+def init_gemini_model():
+    if USE_MOCK_AI:
+        log.info("Gemini Flash Mock 모드 사용 (USE_MOCK_AI=true)")
+        return None
+
+    if not GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY 미설정: 규칙 기반 fallback만 사용합니다.")
+        return None
+
+    if genai is None:
+        log.warning("google-generativeai 모듈 없음: 규칙 기반 fallback만 사용합니다.")
+        return None
+
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        return genai.GenerativeModel(GEMINI_MODEL)
+    except Exception as e:
+        log.warning(f"Gemini 모델 초기화 실패: {e} | fallback만 사용합니다.")
+        return None
+
+
+def call_gemini_impression(model, row: dict) -> tuple[Optional[dict[str, float]], Optional[str]]:
+    if USE_MOCK_AI:
+        return generate_mock_impression(int(row["pokemon_id"])), None
+
+    if model is None:
+        return None, "gemini_model_unavailable"
+
+    try:
+        response = model.generate_content(build_prompt(row))
+        parsed = parse_json_object(getattr(response, "text", ""))
+        if parsed is None:
+            return None, "gemini_json_parse_failed"
+        return normalize_impression_scores(parsed), None
+    except Exception as e:
+        return None, f"gemini_error: {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -132,78 +195,140 @@ def get_db_connection():
 
 
 def run(start: int, end: int):
-    log.info(f"===== 인상 점수 계산 시작: #{start} ~ #{end} =====")
+    log.info(f"===== Step 3: 인상 점수 계산 시작: #{start}~#{end} =====")
+    model = init_gemini_model()
 
-    conn   = get_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # 필요한 값 JOIN 조회
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
-            m.pokemon_id, m.name_kr,
-            fs.face_aspect_ratio, fs.jawline_angle,
-            ey.eye_size_ratio, ey.eye_distance_ratio, ey.eye_slant_angle,
-            st.has_glasses, st.has_facial_hair, st.has_bangs,
-            em.smile_score, em.emotion_class
+            m.pokemon_id, m.name_kr, m.name_en,
+            m.primary_type, m.secondary_type, m.pokedex_text_kr,
+            v.eye_size_score, v.eye_distance_score, v.eye_roundness_score,
+            v.eye_tail_score, v.face_roundness_score, v.face_proportion_score,
+            v.feature_size_score, v.feature_emphasis_score,
+            v.mouth_curve_score, v.overall_symmetry, v.has_glasses
         FROM pokemon_master m
-        JOIN pokemon_face_shape          fs ON m.pokemon_id = fs.pokemon_id
-        JOIN pokemon_eye_features        ey ON m.pokemon_id = ey.pokemon_id
-        JOIN pokemon_style_features      st ON m.pokemon_id = st.pokemon_id
-        JOIN pokemon_emotion_features    em ON m.pokemon_id = em.pokemon_id
+        JOIN pokemon_visual v ON m.pokemon_id = v.pokemon_id
         WHERE m.pokemon_id BETWEEN %s AND %s
         ORDER BY m.pokemon_id;
-    """, (start, end))
+    """,
+        (start, end),
+    )
 
     rows = cursor.fetchall()
     log.info(f"처리 대상: {len(rows)}마리")
 
+    if len(rows) == 0:
+        log.warning("처리할 데이터가 없습니다. Step 2를 먼저 실행하세요.")
+
     success = 0
+    pending_commits = 0
+    failed = 0
+    gemini_count = 0
+    mock_count = 0
+    fallback_count = 0
+
     for row in rows:
         pokemon_id = row["pokemon_id"]
-        scores = calc_impression(row)
+        cursor.execute("SAVEPOINT sp_impression_row")
 
-        cursor.execute("""
-            INSERT INTO pokemon_impression_scores (
-                pokemon_id,
-                cute_score, calm_score, smart_score, fierce_score, gentle_score,
-                lively_score, innocent_score, confident_score, unique_score,
-                derivation_note
-            ) VALUES (
-                %(pokemon_id)s,
-                %(cute_score)s, %(calm_score)s, %(smart_score)s, %(fierce_score)s, %(gentle_score)s,
-                %(lively_score)s, %(innocent_score)s, %(confident_score)s, %(unique_score)s,
-                'auto_from_face_eye_style_emotion_v1'
+        try:
+            fallback_impression = calc_impression_from_visual(row)
+            gemini_impression, gemini_error = call_gemini_impression(model, row)
+
+            source_label = "fallback"
+            derivation_note = "fallback_auto_from_visual_v5"
+            if gemini_impression is not None:
+                impression = gemini_impression
+                if USE_MOCK_AI:
+                    source_label = "mock_gemini"
+                    derivation_note = "mock_gemini_flash_v5"
+                    mock_count += 1
+                else:
+                    source_label = "gemini_flash"
+                    derivation_note = "gemini_flash_from_text_v5"
+                    gemini_count += 1
+            else:
+                impression = fallback_impression
+                fallback_count += 1
+                if gemini_error:
+                    log.warning(f"  #{pokemon_id:03d} Gemini 실패 → fallback: {gemini_error}")
+
+            scores = impression_to_db_scores(impression)
+            cursor.execute(
+                """
+                INSERT INTO pokemon_impression (
+                    pokemon_id,
+                    cute_score, calm_score, smart_score, fierce_score, gentle_score,
+                    lively_score, innocent_score, confident_score, unique_score,
+                    derivation_note
+                ) VALUES (
+                    %(pokemon_id)s,
+                    %(cute_score)s, %(calm_score)s, %(smart_score)s,
+                    %(fierce_score)s, %(gentle_score)s,
+                    %(lively_score)s, %(innocent_score)s,
+                    %(confident_score)s, %(unique_score)s,
+                    %(derivation_note)s
+                )
+                ON CONFLICT (pokemon_id) DO UPDATE SET
+                    cute_score = EXCLUDED.cute_score,
+                    calm_score = EXCLUDED.calm_score,
+                    smart_score = EXCLUDED.smart_score,
+                    fierce_score = EXCLUDED.fierce_score,
+                    gentle_score = EXCLUDED.gentle_score,
+                    lively_score = EXCLUDED.lively_score,
+                    innocent_score = EXCLUDED.innocent_score,
+                    confident_score = EXCLUDED.confident_score,
+                    unique_score = EXCLUDED.unique_score,
+                    derivation_note = EXCLUDED.derivation_note;
+            """,
+                {
+                    "pokemon_id": pokemon_id,
+                    "derivation_note": derivation_note,
+                    **scores,
+                },
             )
-            ON CONFLICT (pokemon_id) DO UPDATE SET
-                cute_score      = EXCLUDED.cute_score,
-                calm_score      = EXCLUDED.calm_score,
-                smart_score     = EXCLUDED.smart_score,
-                fierce_score    = EXCLUDED.fierce_score,
-                gentle_score    = EXCLUDED.gentle_score,
-                lively_score    = EXCLUDED.lively_score,
-                innocent_score  = EXCLUDED.innocent_score,
-                confident_score = EXCLUDED.confident_score,
-                unique_score    = EXCLUDED.unique_score,
-                derivation_note = EXCLUDED.derivation_note;
-        """, {"pokemon_id": pokemon_id, **scores})
+            cursor.execute("RELEASE SAVEPOINT sp_impression_row")
+            pending_commits += 1
+            if pending_commits >= COMMIT_BATCH_SIZE:
+                conn.commit()
+                pending_commits = 0
+        except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT sp_impression_row")
+            cursor.execute("RELEASE SAVEPOINT sp_impression_row")
+            log.error(f"  DB 저장 오류 #{pokemon_id}: {e}")
+            failed += 1
+            continue
 
-        conn.commit()
         log.info(
             f"  #{pokemon_id:03d} {row['name_kr']} | "
             f"cute={scores['cute_score']} calm={scores['calm_score']} "
-            f"smart={scores['smart_score']} fierce={scores['fierce_score']}"
+            f"fierce={scores['fierce_score']} unique={scores['unique_score']} "
+            f"source={source_label}"
         )
         success += 1
 
+        if not USE_MOCK_AI and model is not None:
+            time.sleep(REQUEST_DELAY)
+
+    if pending_commits > 0:
+        conn.commit()
+
     cursor.close()
     conn.close()
-
-    log.info(f"===== 인상 점수 계산 완료: {success}마리 =====")
+    log.info(
+        "===== Step 3: 인상 점수 계산 완료: "
+        f"성공 {success}마리 | 실패 {failed}마리 | "
+        f"gemini={gemini_count} mock={mock_count} fallback={fallback_count} ====="
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="인상 점수 자동 계산 스크립트")
-    parser.add_argument("--start", type=int, default=1,   help="시작 번호")
-    parser.add_argument("--end",   type=int, default=151, help="끝 번호")
+    parser = argparse.ArgumentParser(description="인상 점수 계산 스크립트 (Gemini Flash + fallback, v5)")
+    parser.add_argument("--start", type=int, default=1, help="시작 번호")
+    parser.add_argument("--end", type=int, default=386, help="끝 번호")
     args = parser.parse_args()
     run(start=args.start, end=args.end)
