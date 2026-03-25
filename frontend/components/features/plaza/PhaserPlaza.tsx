@@ -107,6 +107,8 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
       class PlazaScene extends Phaser.Scene {
         private player!: Phaser.GameObjects.Container;
         private playerSprite: Phaser.GameObjects.Sprite | null = null;
+        private playerMask: Phaser.GameObjects.Graphics | null = null;
+        private otherPlayerMasks = new Map<string, Phaser.GameObjects.Graphics>();
         private lastDir = "down";
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
         private wasd!: {
@@ -155,10 +157,14 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
             removeOtherPlayer: (sid) => {
               const c = otherPlayers.get(sid);
               if (c) { c.destroy(); otherPlayers.delete(sid); }
+              const m = this.otherPlayerMasks.get(sid);
+              if (m) { m.destroy(); this.otherPlayerMasks.delete(sid); }
             },
             updateOtherPlayerPos: (sid, x, y) => {
               const c = otherPlayers.get(sid);
               if (c) c.setPosition(x, y);
+              const m = this.otherPlayerMasks.get(sid);
+              if (m) m.setPosition(x, y);
             },
             showChatBubble: (sid, message) => { this.showBubble(sid, message); },
           };
@@ -195,10 +201,11 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
             this.player.add(sprite);
             sprite.play("walk_down");
           } else if (this.textures.exists("creature")) {
-            const mask = this.add.graphics();
-            mask.fillStyle(0xffffff, 1);
-            mask.fillCircle(0, 0, PLAYER_RADIUS);
-            const geoMask = mask.createGeometryMask();
+            const maskGfx = this.add.graphics({ x: this.player.x, y: this.player.y });
+            maskGfx.fillStyle(0xffffff, 1);
+            maskGfx.fillCircle(0, 0, PLAYER_RADIUS);
+            this.playerMask = maskGfx;
+            const geoMask = maskGfx.createGeometryMask();
             const img = this.add.image(0, 0, "creature");
             img.setDisplaySize(PLAYER_RADIUS * 2, PLAYER_RADIUS * 2);
             img.setMask(geoMask);
@@ -226,13 +233,13 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
           name: string,
           textureKey: string,
           isLocal: boolean,
-        ) {
+        ): Phaser.GameObjects.Graphics | null {
           const borderColor = isLocal ? 0x1a1a2e : 0x2a7a7a;
           if (imageUrl && this.textures.exists(textureKey)) {
-            const mask = this.add.graphics();
-            mask.fillStyle(0xffffff, 1);
-            mask.fillCircle(0, 0, PLAYER_RADIUS);
-            const geoMask = mask.createGeometryMask();
+            const maskGfx = this.add.graphics({ x: container.x, y: container.y });
+            maskGfx.fillStyle(0xffffff, 1);
+            maskGfx.fillCircle(0, 0, PLAYER_RADIUS);
+            const geoMask = maskGfx.createGeometryMask();
             const img = this.add.image(0, 0, textureKey);
             img.setDisplaySize(PLAYER_RADIUS * 2, PLAYER_RADIUS * 2);
             img.setMask(geoMask);
@@ -240,6 +247,7 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
             border.setStrokeStyle(3, borderColor, 1);
             border.setFillStyle(0, 0);
             container.add([img, border]);
+            return maskGfx;
           } else {
             const color = isLocal ? 0x7c6af0 : 0x4a9fa5;
             const circle = this.add.arc(0, 0, PLAYER_RADIUS, 0, 360, false, color);
@@ -251,6 +259,7 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
             backgroundColor: "#ffffffdd", padding: { x: 4, y: 2 },
           }).setOrigin(0.5, 1);
           container.add(tag);
+          return null;
         }
 
         private addOtherPlayerSprite(
@@ -260,7 +269,8 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
           const container = this.add.container(x, y);
           container.setDepth(9);
           const doAdd = () => {
-            this.addPlayerGraphics(container, imageUrl, nickname, textureKey, false);
+            const mask = this.addPlayerGraphics(container, imageUrl, nickname, textureKey, false);
+            if (mask) this.otherPlayerMasks.set(sid, mask);
             container.setSize(PLAYER_RADIUS * 2, PLAYER_RADIUS * 2);
             container.setInteractive({ cursor: "pointer" });
             container.on("pointerdown", () => dmRequestCbRef.current?.(sid));
@@ -352,6 +362,7 @@ export default function PhaserPlaza({ playerCreature, bgmEnabled, onBgmToggle, o
           nx = Phaser.Math.Clamp(nx, hw, WORLD_W - hw);
           ny = Phaser.Math.Clamp(ny, hw, WORLD_H - hw);
           this.player.setPosition(nx, ny);
+          if (this.playerMask) this.playerMask.setPosition(nx, ny);
 
           // 스프라이트 방향 애니메이션
           if (this.playerSprite) {
