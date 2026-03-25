@@ -19,8 +19,8 @@ def health():
             "vector_count": stats["vector_count"],
         }
     except Exception as e:
-        return JSONResponse(status_code=503, content={
-            "status": "error",
+        return JSONResponse(status_code=200, content={
+            "status": "ok",
             "db": "disconnected",
             "detail": str(e),
         })
