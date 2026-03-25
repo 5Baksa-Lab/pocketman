@@ -11,6 +11,7 @@ RUN apt-get update \
         libglib2.0-0 \
         libgomp1 \
         libgl1 \
+        libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt /app/requirements.txt
@@ -23,4 +24,4 @@ COPY scripts/shared /app/scripts/shared
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
